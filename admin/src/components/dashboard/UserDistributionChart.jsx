@@ -3,8 +3,6 @@ import { Empty, Typography, Spin } from 'antd';
 import { Pie } from 'react-chartjs-2';
 import { colors } from '../../constants/colors';
 
-const { Title } = Typography;
-
 function UserDistributionChart({ data, loading }) {
   if (loading) {
     return (
@@ -32,22 +30,33 @@ function UserDistributionChart({ data, loading }) {
     );
   }
 
+  // Map roles to display labels
+  const roleLabels = {
+    owner: 'Chủ sở hữu',
+    admin: 'Quản trị viên',
+    moderator: 'Điều hành viên',
+    user: 'Người dùng'
+  };
+
+  // Map roles to colors
+  const roleColors = {
+    owner: colors.error,
+    admin: colors.warning,
+    moderator: colors.success,
+    user: colors.primary
+  };
+
+  // Sort data by role priority
+  const rolePriority = ['owner', 'admin', 'moderator', 'user'];
+  const sortedData = [...data].sort((a, b) => 
+    rolePriority.indexOf(a.role) - rolePriority.indexOf(b.role)
+  );
+
   const chartData = {
-    labels: data.map(item => {
-      const roleLabels = {
-        admin: 'Quản trị viên',
-        moderator: 'Điều hành viên',
-        user: 'Người dùng'
-      };
-      return roleLabels[item.role] || item.role;
-    }),
+    labels: sortedData.map(item => roleLabels[item.role] || item.role),
     datasets: [{
-      data: data.map(item => item.value),
-      backgroundColor: [
-        colors.error,
-        colors.warning,
-        colors.success
-      ],
+      data: sortedData.map(item => item.value),
+      backgroundColor: sortedData.map(item => roleColors[item.role] || colors.primary),
       borderColor: colors.bgPrimary,
       borderWidth: 2
     }]
@@ -63,18 +72,21 @@ function UserDistributionChart({ data, loading }) {
           font: {
             size: 12
           },
-          padding: 20
-        }
-      },
-      title: {
-        display: true,
-        text: 'Phân bố người dùng theo vai trò',
-        font: {
-          size: 16,
-          weight: 600
-        },
-        padding: {
-          bottom: 20
+          padding: 20,
+          generateLabels: (chart) => {
+            const data = chart.data;
+            if (data.labels.length && data.datasets.length) {
+              return data.labels.map((label, i) => ({
+                text: `${label} (${data.datasets[0].data[i]})`,
+                fillStyle: data.datasets[0].backgroundColor[i],
+                strokeStyle: data.datasets[0].borderColor,
+                lineWidth: data.datasets[0].borderWidth,
+                hidden: isNaN(data.datasets[0].data[i]),
+                index: i
+              }));
+            }
+            return [];
+          }
         }
       }
     }

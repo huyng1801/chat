@@ -1,7 +1,7 @@
 const { DataTypes } = require('sequelize');
 
 module.exports = (sequelize) => {
-  const Message = sequelize.define('Message', {
+  const ForbiddenWord = sequelize.define('ForbiddenWord', {
     id: {
       type: DataTypes.UUID,
       defaultValue: DataTypes.UUIDV4,
@@ -15,30 +15,30 @@ module.exports = (sequelize) => {
         key: 'id'
       }
     },
-    sender_id: {
+    word: {
+      type: DataTypes.STRING,
+      allowNull: false
+    },
+    action: {
+      type: DataTypes.ENUM('censor', 'block'),
+      defaultValue: 'censor',
+      allowNull: false
+    },
+    created_by: {
       type: DataTypes.UUID,
       allowNull: false,
       references: {
         model: 'users',
         key: 'id'
       }
-    },
-    content: {
-      type: DataTypes.TEXT,
-      allowNull: false
-    },
-    type: {
-      type: DataTypes.ENUM('text', 'image', 'file'),
-      defaultValue: 'text'
     }
   }, {
-    tableName: 'messages',
+    tableName: 'forbidden_words',
     indexes: [
-      { fields: ['room_id'] },
-      { fields: ['sender_id'] },
-      { fields: ['created_at'] }
+      { fields: ['room_id', 'word'], unique: true },
+      { fields: ['created_by'] }
     ]
   });
 
-  return Message;
+  return ForbiddenWord;
 };

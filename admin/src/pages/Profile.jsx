@@ -27,12 +27,12 @@ function Profile() {
   const handleSubmit = async (values) => {
     try {
       setLoading(true);
+      console.log(values);
       await updateUser({
         username: values.username,
-        display_name: values.display_name,
+        displayName: values.display_name,
         avatar: values.avatar
       });
-      message.success('Cập nhật thông tin thành công');
     } catch (error) {
       message.error(error.message);
     } finally {
@@ -117,13 +117,13 @@ function Profile() {
 
           <Form.Item
             name="username"
-            label="Tên đăng nhập"
+            label="Tên người dùng"
             rules={[
-              { required: true, message: 'Vui lòng nhập tên đăng nhập' },
-              { min: 3, message: 'Tên đăng nhập phải có ít nhất 3 ký tự' }
+              { required: true, message: 'Vui lòng nhập tên người dùng' },
+              { min: 3, message: 'Tên người dùng phải có ít nhất 3 ký tự' }
             ]}
           >
-            <Input placeholder="Nhập tên đăng nhập" />
+            <Input placeholder="Nhập tên người dùng" />
           </Form.Item>
 
           <Form.Item

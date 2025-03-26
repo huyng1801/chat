@@ -13,7 +13,8 @@ function ChatRoomTable({
   onDelete,
   onViewDetails,
   pagination,
-  onChange 
+  onChange,
+  rowSelection
 }) {
   const columns = [
     {
@@ -127,11 +128,19 @@ function ChatRoomTable({
       dataSource={rooms}
       loading={loading}
       rowKey="id"
+      rowSelection={rowSelection}
       pagination={{
         ...pagination,
         showSizeChanger: true,
-        showTotal: (total) => `Tổng số ${total} phòng chat`,
-        onChange: (page, pageSize) => onChange({ page, pageSize })
+        showTotal: (total) => `Tổng số ${total} phòng chat`
+      }}
+      onChange={(pagination, filters, sorter) => {
+        onChange({
+          current: pagination.current,
+          pageSize: pagination.pageSize,
+          sortField: sorter.field,
+          sortOrder: sorter.order
+        });
       }}
     />
   );

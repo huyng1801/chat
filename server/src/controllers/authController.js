@@ -51,15 +51,47 @@ async function getCurrentUser(req, res) {
 
 async function updateProfile(req, res) {
   try {
-    const { currentPassword, newPassword, username, displayName, avatar } = req.body;
+    const { username, displayName, avatar } = req.body;
     const updatedUser = await authService.updateProfile(req.user.id, {
-      currentPassword,
-      newPassword,
       username,
       displayName,
       avatar
     });
+
     res.json(updatedUser);
+  } catch (error) {
+    res.status(400).json({ error: error.message });
+  }
+}
+
+async function changePassword(req, res) {
+  try {
+    const { currentPassword, newPassword } = req.body;
+    
+    if (!currentPassword || !newPassword) {
+      throw new Error('Vui lòng cung cấp mật khẩu hiện tại và mật khẩu mới');
+    }
+
+    await authService.changePassword(req.user.id, currentPassword, newPassword);
+    res.json({ success: true, message: 'Đổi mật khẩu thành công' });
+  } catch (error) {
+    res.status(400).json({ error: error.message });
+  }
+}
+
+async function forgotPassword(req, res) {
+  try {
+    const { email } = req.body;
+    
+    if (!email) {
+      throw new Error('Vui lòng cung cấp địa chỉ email');
+    }
+
+    await authService.forgotPassword(email);
+    res.json({ 
+      success: true, 
+      message: 'Mật khẩu tạm thời đã được gửi đến email của bạn' 
+    });
   } catch (error) {
     res.status(400).json({ error: error.message });
   }
@@ -70,5 +102,7 @@ module.exports = {
   login,
   logout,
   getCurrentUser,
-  updateProfile
+  updateProfile,
+  changePassword,
+  forgotPassword
 };

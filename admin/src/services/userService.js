@@ -5,6 +5,10 @@ class UserService {
     return api.get('/users', { params });
   }
 
+  async getChatUsers(params = {}) {
+    return api.get('/users/chat', { params });
+  }
+
   async getUser(id) {
     return api.get(`/users/${id}`);
   }

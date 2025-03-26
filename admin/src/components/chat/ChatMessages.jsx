@@ -1,8 +1,9 @@
 import React from 'react';
-import { Empty, Spin, Typography, Avatar } from 'antd';
-import { UserOutlined } from '@ant-design/icons';
+import { Empty, Spin, Typography, Avatar, Space } from 'antd';
+import { UserOutlined, FileOutlined, StarFilled, CrownFilled } from '@ant-design/icons';
 import { format } from 'date-fns';
 import { vi } from 'date-fns/locale';
+import { useAuth } from '../../context/AuthContext';
 
 const { Text } = Typography;
 
@@ -10,9 +11,10 @@ function ChatMessages({
   messages = [], 
   loading, 
   hasMore, 
-  messageContainerRef,
-  currentUserId
+  messageContainerRef
 }) {
+  const { user } = useAuth();
+
   const EmptyMessageState = () => (
     <Empty
       image={Empty.PRESENTED_IMAGE_SIMPLE}
@@ -24,6 +26,58 @@ function ChatMessages({
       }
     />
   );
+
+  const roleConfig = {
+    owner: {
+      color: '#ffd700',
+      stars: [
+        <CrownFilled key="crown1" style={{ color: '#ffd700', fontSize: '16px' }}/>,
+        <CrownFilled key="crown2" style={{ color: '#ffd700', fontSize: '16px' }}/>,
+        <CrownFilled key="crown3" style={{ color: '#ffd700', fontSize: '16px' }}/>
+      ],
+      background: '#fff1f0',
+      border: '1px solid #ffccc7',
+      nameColor: '#cf1322'
+    },
+    admin: {
+      color: '#faad14',
+      stars: [
+        <StarFilled key="1" style={{ color: '#faad14', fontSize: '16px' }}/>,
+        <StarFilled key="2" style={{ color: '#faad14', fontSize: '16px' }}/>,
+        <StarFilled key="3" style={{ color: '#faad14', fontSize: '16px' }}/>
+      ],
+      background: '#fff7e6',
+      border: '1px solid #ffd591',
+      nameColor: '#d46b08'
+    },
+    moderator: {
+      color: '#1677ff',
+      stars: [
+        <StarFilled key="1" style={{ color: '#1677ff', fontSize: '16px' }}/>,
+        <StarFilled key="2" style={{ color: '#1677ff', fontSize: '16px' }}/>
+      ],
+      background: '#e6f7ff',
+      border: '1px solid #91d5ff',
+      nameColor: '#096dd9'
+    },
+    user: {
+      color: '#52c41a',
+      stars: [
+        <StarFilled key="1" style={{ color: '#52c41a', fontSize: '16px' }}/>
+      ],
+      background: '#fff',
+      border: 'none',
+      nameColor: '#1677ff'
+    },
+    // Default config for system or undefined roles
+    default: {
+      color: '#1677ff',
+      stars: [],
+      background: '#fff',
+      border: 'none',
+      nameColor: '#1677ff'
+    }
+  };
 
   return (
     <div 
@@ -38,7 +92,9 @@ function ChatMessages({
       }}
     >
       {messages.map((msg, index) => {
-        const isOwn = msg.sender_id === currentUserId;
+        const isOwn = msg.sender_id === user?.id;
+        const role = msg.sender_role || 'default';
+        const config = roleConfig[role] || roleConfig.default;
         
         return (
           <div
@@ -51,28 +107,41 @@ function ChatMessages({
           >
             <div
               style={{
-                background: isOwn ? '#e6f4ff' : '#fff',
+                background: isOwn ? '#e6f4ff' : config.background,
                 padding: '12px',
                 borderRadius: '8px',
                 position: 'relative',
-                boxShadow: '0 2px 4px rgba(0,0,0,0.1)'
+                boxShadow: '0 2px 4px rgba(0,0,0,0.1)',
+                border: isOwn ? 'none' : config.border
               }}
             >
               {!isOwn && (
                 <div style={{ 
                   display: 'flex', 
                   alignItems: 'center', 
-                  marginBottom: '8px' 
+                  marginBottom: '8px',
+                  gap: '8px'
                 }}>
                   <Avatar 
                     size="small" 
                     icon={<UserOutlined />} 
                     src={msg.sender_avatar}
-                    style={{ marginRight: '8px' }}
+                    style={{ 
+                      backgroundColor: !msg.sender_avatar ? config.color : 'transparent'
+                    }}
                   />
-                  <Text strong style={{ color: '#1677ff' }}>
-                    {msg.sender_name}
-                  </Text>
+                  <Space direction="vertical" size={0}>
+                    <Space align="center" size={4}>
+                      <Text strong style={{ color: config.nameColor }}>
+                        {msg.sender_name}
+                      </Text>
+                      {config.stars && config.stars.length > 0 && (
+                        <Space size={0}>
+                          {config.stars}
+                        </Space>
+                      )}
+                    </Space>
+                  </Space>
                 </div>
               )}
               

@@ -21,7 +21,7 @@ async function getMessageStats(req, res) {
     res.json(stats);
   } catch (error) {
     console.error('Error in getMessageStats:', error);
-    res.status(500).json({ error: error.message });
+    res.status(400).json({ error: error.message });
   }
 }
 

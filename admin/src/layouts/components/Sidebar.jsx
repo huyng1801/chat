@@ -4,7 +4,8 @@ import {
   DashboardOutlined, 
   UserOutlined, 
   MessageOutlined, 
-  CommentOutlined 
+  CommentOutlined,
+  SettingOutlined
 } from "@ant-design/icons";
 import { useNavigate, useLocation } from "react-router-dom";
 import { useAuth } from "../../context/AuthContext";
@@ -14,12 +15,14 @@ const { Sider } = Layout;
 const { Text } = Typography;
 
 const roleColors = {
-  admin: '#ff4d4f',
-  moderator: '#faad14',
-  user: '#52c41a'
+  owner: '#ff4d4f',
+  admin: '#faad14',
+  moderator: '#52c41a',
+  user: '#1677ff'
 };
 
 const roleLabels = {
+  owner: 'Chủ sở hữu',
   admin: 'Quản trị viên',
   moderator: 'Điều hành viên',
   user: 'Người dùng'
@@ -39,6 +42,10 @@ function Sidebar() {
     { key: "/users", icon: <UserOutlined />, label: "Quản lý người dùng" },
     { key: "/chat-rooms", icon: <MessageOutlined />, label: "Danh sách phòng chat" },
     { key: "/chat", icon: <CommentOutlined />, label: "Tin nhắn" },
+    // Only show settings for owner
+    ...(user?.role === 'owner' ? [
+      { key: "/settings", icon: <SettingOutlined />, label: "Cài đặt hệ thống" }
+    ] : [])
   ];
 
   return (
@@ -50,15 +57,15 @@ function Sidebar() {
         left: 0,
         top: 0,
         bottom: 0,
-        background: `linear-gradient(180deg, ${colors.primary} 0%, ${colors.primaryLight} 100%)`,
-        boxShadow: "4px 0 10px rgba(0, 0, 0, 0.1)",
+        background: colors.primary,
+        boxShadow: "2px 0 8px 0 rgba(29,35,41,.05)",
       }}
     >
       <div
         style={{
           margin: "24px 16px",
           background: "rgba(255, 255, 255, 0.1)",
-          borderRadius: "6px",
+          borderRadius: "12px",
           padding: "20px",
           backdropFilter: "blur(10px)",
           border: "1px solid rgba(255, 255, 255, 0.1)",
@@ -121,7 +128,7 @@ function Sidebar() {
               style={{ 
                 margin: '8px 0',
                 padding: '4px 12px',
-                borderRadius: '6px',
+                borderRadius: '12px',
                 border: 'none',
                 boxShadow: '0 2px 6px rgba(0, 0, 0, 0.1)'
               }}
@@ -142,11 +149,6 @@ function Sidebar() {
           background: 'transparent',
           borderRight: 'none',
           padding: '8px 12px'
-        }}
-        itemStyle={{
-          marginBottom: '8px',
-          borderRadius: '8px',
-          overflow: 'hidden'
         }}
       />
     </Sider>

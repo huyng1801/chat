@@ -5,8 +5,6 @@ import { format } from 'date-fns';
 import { vi } from 'date-fns/locale';
 import { colors } from '../../constants/colors';
 
-const { Title } = Typography;
-
 function ActivityChart({ data, loading }) {
   if (loading) {
     return (
@@ -36,16 +34,38 @@ function ActivityChart({ data, loading }) {
 
   const chartData = {
     labels: data.map(item => format(new Date(item.date), 'dd/MM', { locale: vi })),
-    datasets: [{
-      label: 'Số tin nhắn',
-      data: data.map(item => item.count),
-      borderColor: colors.primary,
-      backgroundColor: `${colors.primary}20`,
-      fill: true,
-      tension: 0.4,
-      pointRadius: 4,
-      pointHoverRadius: 6
-    }]
+    datasets: [
+      {
+        label: 'Tin nhắn phòng',
+        data: data.map(item => item.roomMessages),
+        borderColor: colors.primary,
+        backgroundColor: `${colors.primary}20`,
+        fill: true,
+        tension: 0.4,
+        pointRadius: 4,
+        pointHoverRadius: 6
+      },
+      {
+        label: 'Tin nhắn riêng',
+        data: data.map(item => item.directMessages),
+        borderColor: colors.success,
+        backgroundColor: `${colors.success}20`,
+        fill: true,
+        tension: 0.4,
+        pointRadius: 4,
+        pointHoverRadius: 6
+      },
+      {
+        label: 'Tổng tin nhắn',
+        data: data.map(item => item.totalMessages),
+        borderColor: colors.warning,
+        backgroundColor: `${colors.warning}20`,
+        fill: true,
+        tension: 0.4,
+        pointRadius: 4,
+        pointHoverRadius: 6
+      }
+    ]
   };
 
   const options = {
@@ -58,14 +78,6 @@ function ActivityChart({ data, loading }) {
           font: {
             size: 12
           }
-        }
-      },
-      title: {
-        display: true,
-        text: 'Thống kê tin nhắn theo ngày',
-        font: {
-          size: 16,
-          weight: 600
         }
       }
     },

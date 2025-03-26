@@ -16,6 +16,14 @@ class AuthService {
   async updateProfile(profileData) {
     return api.put('/auth/profile', profileData);
   }
+
+  async changePassword(currentPassword, newPassword) {
+    return api.post('/auth/change-password', { currentPassword, newPassword });
+  }
+
+  async forgotPassword(email) {
+    return api.post('/auth/forgot-password', { email });
+  }
 }
 
 export default new AuthService();

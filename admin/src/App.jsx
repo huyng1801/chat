@@ -12,6 +12,7 @@ import Chat from './pages/Chat';
 import Login from './pages/Login';
 import Profile from './pages/Profile';
 import ChangePassword from './pages/ChangePassword';
+import Settings from './pages/Settings';
 import { colors } from './constants/colors';
 
 const theme = {
@@ -41,12 +42,12 @@ const theme = {
 };
 
 const PrivateRoute = ({ children }) => {
-  const { user, loading, isAdmin, isModerator } = useAuth();
+  const { user, loading, isOwner, isAdmin, isModerator } = useAuth();
   
   if (loading) return null;
   
   // Allow both admin and moderator roles
-  if (!user || (!isAdmin && !isModerator)) {
+  if (!user || (!isOwner && !isAdmin && !isModerator)) {
     return <Navigate to="/login" />;
   }
   
@@ -81,6 +82,7 @@ function AppRoutes() {
                 <Route path="chat/user/:userId" element={<Chat />} />
                 <Route path="profile" element={<Profile />} />
                 <Route path="change-password" element={<ChangePassword />} />
+                <Route path="settings" element={<Settings />} />
                 <Route path="*" element={<Navigate to="/" replace />} />
               </Routes>
             </MainLayout>

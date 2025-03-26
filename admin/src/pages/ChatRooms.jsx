@@ -1,10 +1,18 @@
 import React, { useState, useEffect } from 'react';
 import { Card, Button, Input, message, Typography, Space, Form, Modal } from 'antd';
-import { PlusOutlined, SearchOutlined, ReloadOutlined } from '@ant-design/icons';
+import { 
+  PlusOutlined, 
+  SearchOutlined, 
+  ReloadOutlined, 
+  NotificationOutlined,
+  BellOutlined 
+} from '@ant-design/icons';
 import { chatService } from '../services';
 import ChatRoomTable from '../components/chat-room/ChatRoomTable';
 import ChatRoomForm from '../components/chat-room/ChatRoomForm';
 import ChatRoomDetails from '../components/chat-room/ChatRoomDetails';
+import AnnouncementModal from '../components/chat-room/AnnouncementModal';
+import AnnouncementManagerModal from '../components/chat-room/AnnouncementManagerModal';
 import debounce from 'lodash/debounce';
 
 const { Text } = Typography;
@@ -16,6 +24,9 @@ function ChatRooms() {
   const [selectedRoom, setSelectedRoom] = useState(null);
   const [detailsVisible, setDetailsVisible] = useState(false);
   const [roomDetails, setRoomDetails] = useState(null);
+  const [selectedRows, setSelectedRows] = useState([]);
+  const [isAnnouncementModalVisible, setIsAnnouncementModalVisible] = useState(false);
+  const [isAnnouncementManagerVisible, setIsAnnouncementManagerVisible] = useState(false);
   const [form] = Form.useForm();
 
   // Filter states
@@ -92,7 +103,7 @@ function ChatRooms() {
 
   const handleViewDetails = async (room) => {
     try {
-      const details = await chatService.getRoomDetails(room.id);
+      const details = await chatService.getRoom(room.id);
       setRoomDetails(details);
       setDetailsVisible(true);
     } catch (error) {
@@ -108,6 +119,26 @@ function ChatRooms() {
       sortBy: 'created_at',
       sortOrder: 'desc'
     });
+    setSelectedRows([]);
+  };
+
+  const handleCreateAnnouncement = () => {
+    if (selectedRows.length === 0) {
+      message.warning('Vui lòng chọn ít nhất một phòng chat');
+      return;
+    }
+    setIsAnnouncementModalVisible(true);
+  };
+
+  const rowSelection = {
+    selectedRowKeys: selectedRows,
+    onChange: (selectedRowKeys) => {
+      setSelectedRows(selectedRowKeys);
+    },
+    getCheckboxProps: (record) => ({
+      disabled: false, // Enable selection for all rooms
+      name: record.name,
+    }),
   };
 
   return (
@@ -119,17 +150,32 @@ function ChatRooms() {
         marginBottom: '24px' 
       }}>
         <Text strong style={{ fontSize: '20px' }}>Danh sách phòng chat</Text>
-        <Button
-          type="primary"
-          icon={<PlusOutlined />}
-          onClick={() => {
-            form.resetFields();
-            setSelectedRoom(null);
-            setIsModalVisible(true);
-          }}
-        >
-          Tạo phòng chat
-        </Button>
+        <Space>
+          <Button
+            icon={<BellOutlined />}
+            onClick={() => setIsAnnouncementManagerVisible(true)}
+          >
+            Quản lý thông báo
+          </Button>
+          <Button
+            icon={<NotificationOutlined />}
+            onClick={handleCreateAnnouncement}
+            disabled={selectedRows.length === 0}
+          >
+            Tạo thông báo ({selectedRows.length})
+          </Button>
+          <Button
+            type="primary"
+            icon={<PlusOutlined />}
+            onClick={() => {
+              form.resetFields();
+              setSelectedRoom(null);
+              setIsModalVisible(true);
+            }}
+          >
+            Tạo phòng chat
+          </Button>
+        </Space>
       </div>
 
       <Card>
@@ -170,6 +216,7 @@ function ChatRooms() {
               limit: pageSize
             }));
           }}
+          rowSelection={rowSelection}
         />
       </Card>
 
@@ -195,6 +242,21 @@ function ChatRooms() {
           setDetailsVisible(false);
           setRoomDetails(null);
         }}
+      />
+
+      <AnnouncementModal
+        visible={isAnnouncementModalVisible}
+        onClose={() => {
+          setIsAnnouncementModalVisible(false);
+          setSelectedRows([]);
+        }}
+        selectedRooms={selectedRows}
+        rooms={rooms}
+      />
+
+      <AnnouncementManagerModal
+        visible={isAnnouncementManagerVisible}
+        onClose={() => setIsAnnouncementManagerVisible(false)}
       />
     </div>
   );

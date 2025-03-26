@@ -25,8 +25,8 @@ export const AuthProvider = ({ children }) => {
         throw new Error('Không tìm thấy thông tin người dùng');
       }
 
-      // Allow both admin and moderator roles
-      if (!['admin', 'moderator'].includes(userData.role)) {
+      // Allow owner, admin and moderator roles
+      if (!['owner', 'admin', 'moderator'].includes(userData.role)) {
         throw new Error('Truy cập bị từ chối. Yêu cầu quyền quản trị hoặc điều hành.');
       }
       
@@ -49,8 +49,8 @@ export const AuthProvider = ({ children }) => {
         throw new Error('Phản hồi không hợp lệ từ máy chủ');
       }
   
-      // Allow both admin and moderator roles
-      if (!['admin', 'moderator'].includes(userData.role)) {
+      // Allow owner, admin and moderator roles
+      if (!['owner', 'admin', 'moderator'].includes(userData.role)) {
         throw new Error('Truy cập bị từ chối. Yêu cầu quyền quản trị hoặc điều hành.');
       }
 
@@ -95,6 +95,17 @@ export const AuthProvider = ({ children }) => {
     } catch (error) {
       const errorMessage = error.response?.data?.error || error.message;
       message.error(errorMessage);
+    }
+  };
+
+  const changePassword = async (currentPassword, newPassword) => {
+    try {
+      await authService.changePassword(currentPassword, newPassword);
+      message.success('Đổi mật khẩu thành công');
+      return true;
+    } catch (error) {
+      const errorMessage = error.response?.data?.error || error.message;
+      message.error(errorMessage);
       throw new Error(errorMessage);
     }
   };
@@ -104,10 +115,12 @@ export const AuthProvider = ({ children }) => {
     login,
     logout,
     loading,
+    isOwner: user?.role === 'owner',
     isAdmin: user?.role === 'admin',
     isModerator: user?.role === 'moderator',
     token,
     updateUser,
+    changePassword,
     isAuthenticated: !!user && !!token
   };
 

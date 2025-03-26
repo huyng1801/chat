@@ -1,4 +1,3 @@
-
 import React from 'react';
 import { Button, Input, Tooltip, Upload, Typography } from 'antd';
 import { SendOutlined, FileImageOutlined, SmileOutlined, FileOutlined } from '@ant-design/icons';

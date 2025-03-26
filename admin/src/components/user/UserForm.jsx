@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Form, Input, Select, Switch, Upload, Button, Avatar, Space, Typography, message } from 'antd';
 import { UploadOutlined, UserOutlined, LinkOutlined } from '@ant-design/icons';
 import { useAuth } from '../../context/AuthContext';
@@ -9,12 +9,40 @@ const { Text } = Typography;
 function UserForm({ form, editingUser }) {
   const { user: currentUser } = useAuth();
   const isModerator = currentUser?.role === 'moderator';
-  const [avatarUrl, setAvatarUrl] = useState(editingUser?.avatar || form.getFieldValue('avatar') || '');
+  const [avatarUrl, setAvatarUrl] = useState('');
+
+  // Set initial values when editingUser changes
+  useEffect(() => {
+    if (editingUser) {
+      form.setFieldsValue({
+        email: editingUser.email,
+        username: editingUser.username,
+        display_name: editingUser.display_name,
+        role: editingUser.role,
+        isActive: editingUser.is_active,
+        avatar: editingUser.avatar
+      });
+      setAvatarUrl(editingUser.avatar);
+    } else {
+      form.resetFields();
+      setAvatarUrl('');
+    }
+  }, [editingUser, form]);
 
   const getAvailableRoles = () => {
+    if (currentUser?.role === 'owner') {
+      return [
+        { value: 'owner', label: 'Chủ sở hữu' },
+        { value: 'admin', label: 'Quản trị viên' },
+        { value: 'moderator', label: 'Điều hành viên' },
+        { value: 'user', label: 'Người dùng' }
+      ];
+    }
+    
     if (isModerator) {
       return [{ value: 'user', label: 'Người dùng' }];
     }
+
     return [
       { value: 'admin', label: 'Quản trị viên' },
       { value: 'moderator', label: 'Điều hành viên' },
@@ -30,16 +58,20 @@ function UserForm({ form, editingUser }) {
 
   const handleFileChange = async ({ file }) => {
     try {
-     
       if (!file) return;
-   
+      
       const base64 = await convertFileToBase64(file);
-      setAvatarUrl(base64);;
-
+      setAvatarUrl(base64);
       form.setFieldsValue({ avatar: base64 });
     } catch (error) {
-      console.error('Lỗi khi xử lý hình ảnh');
+      message.error('Lỗi khi xử lý hình ảnh');
     }
+  };
+
+  const handleUrlChange = (e) => {
+    const url = e.target.value;
+    setAvatarUrl(url);
+    form.setFieldsValue({ avatar: url });
   };
 
   const handlePaste = async (event) => {
@@ -55,10 +87,12 @@ function UserForm({ form, editingUser }) {
     }
   };
 
-  const handleAvatarUrlChange = (e) => {
-    const url = e.target.value;
-
-    form.setFieldsValue({ avatar: url });
+  const canEditRole = () => {
+    if (currentUser?.role === 'owner') return true;
+    if (isModerator) return false;
+    if (editingUser?.role === 'owner') return false;
+    if (editingUser?.role === 'admin' && currentUser?.role !== 'owner') return false;
+    return true;
   };
 
   return (
@@ -87,6 +121,22 @@ function UserForm({ form, editingUser }) {
 
         <Form.Item
           name="avatar"
+          validateTrigger="onSubmit"
+          rules={[
+            { 
+              required: true, 
+              message: "Vui lòng nhập hoặc tải lên avatar!" 
+            },
+            {
+              validator: (_, value) => {
+                if (!value) return Promise.reject();
+                if (isBase64Image(value) || value.startsWith('http')) {
+                  return Promise.resolve();
+                }
+                return Promise.reject('URL hoặc định dạng ảnh không hợp lệ!');
+              }
+            }
+          ]}
         >
           <Space direction="vertical" style={{ width: '100%' }}>
             <Space>
@@ -106,7 +156,7 @@ function UserForm({ form, editingUser }) {
             <Input 
               placeholder="Nhập URL avatar"
               value={avatarUrl}
-              onChange={handleAvatarUrlChange}
+              onChange={handleUrlChange}
               prefix={<LinkOutlined style={{ color: '#1677ff' }} />}
               allowClear
             />
@@ -123,7 +173,10 @@ function UserForm({ form, editingUser }) {
           { type: "email", message: "Email không hợp lệ!" }
         ]}
       >
-        <Input placeholder="Nhập email" />
+        <Input 
+          placeholder="Nhập email" 
+          disabled={editingUser}
+        />
       </Form.Item>
 
       <Form.Item
@@ -170,7 +223,7 @@ function UserForm({ form, editingUser }) {
         <Select 
           placeholder="Chọn vai trò"
           options={getAvailableRoles()}
-          disabled={isModerator || (editingUser && editingUser.role !== 'user')}
+          disabled={!canEditRole()}
         />
       </Form.Item>
 
@@ -182,7 +235,7 @@ function UserForm({ form, editingUser }) {
         <Switch 
           checkedChildren="Kích hoạt" 
           unCheckedChildren="Vô hiệu"
-          disabled={isModerator && editingUser && editingUser.role !== 'user'}
+          disabled={editingUser?.role === 'owner' || (isModerator && editingUser && editingUser.role !== 'user')}
         />
       </Form.Item>
     </Form>

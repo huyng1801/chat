@@ -1,6 +1,12 @@
-const { User, ChatRoom, Message } = require('../models');
+const { User, ChatRoom, RoomMessage } = require('../models');
+const { 
+  createRoomMessageService,
+  createRoomMemberService
+} = require('../services');
 
 function createChatHandler(io) {
+  const roomMessageService = createRoomMessageService();
+  const roomMemberService = createRoomMemberService();
   const connectedUsers = new Map();
   const userSockets = new Map();
 
@@ -54,6 +60,10 @@ function createChatHandler(io) {
           socket.join(`room:${room.id}`);
         });
 
+        const { avatar, ...userWithoutAvatar } = user.toJSON();
+        console.log('User authenticated:', userWithoutAvatar);
+        
+        
       } catch (error) {
         console.error('Lỗi xác thực:', error);
         socket.emit('error', error.message);
@@ -67,14 +77,22 @@ function createChatHandler(io) {
           throw new Error('Chưa xác thực');
         }
 
-        const message = await Message.create({
-          room_id: data.roomId,
-          sender_id: userId,
-          content: data.content,
-          type: data.type || 'text'
-        });
+        // Check if user is member of the room
+        const isMember = await roomMemberService.getRoomMembers(data.roomId)
+          .then(members => members.some(m => m.id === userId));
 
-        const enrichedMessage = await Message.findOne({
+        if (!isMember) {
+          throw new Error('Không có quyền gửi tin nhắn trong phòng này');
+        }
+
+        const message = await roomMessageService.createMessage(
+          data.roomId,
+          userId,
+          data.content,
+          data.type || 'text'
+        );
+
+        const enrichedMessage = await RoomMessage.findOne({
           where: { id: message.id },
           include: [{
             model: User,

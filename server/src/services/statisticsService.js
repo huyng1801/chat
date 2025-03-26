@@ -1,4 +1,4 @@
-const { User, ChatRoom, Message, RoomMember, sequelize } = require('../models');
+const { User, ChatRoom, RoomMessage, DirectMessage, RoomMember, sequelize } = require('../models');
 const { Op } = require('sequelize');
 
 function createStatisticsService() {
@@ -8,19 +8,53 @@ function createStatisticsService() {
         userCount,
         activeUserCount,
         roomCount,
-        messageCount
+        roomMessageCount,
+        directMessageCount,
+        onlineUsers
       ] = await Promise.all([
-        User.count(),
-        User.count({ where: { status: 'online' } }),
+        User.count({
+          where: { role: { [Op.ne]: 'system' } }
+        }),
+        User.count({ 
+          where: { 
+            is_active: true,
+            role: { [Op.ne]: 'system' }
+          } 
+        }),
         ChatRoom.count(),
-        Message.count()
+        RoomMessage.count({
+          include: [{
+            model: User,
+            as: 'sender',
+            where: { role: { [Op.ne]: 'system' } },
+            required: true
+          }]
+        }),
+        DirectMessage.count({
+          include: [{
+            model: User,
+            as: 'sender',
+            where: { role: { [Op.ne]: 'system' } },
+            required: true
+          }]
+        }),
+        User.count({
+          where: { 
+            status: 'online',
+            role: { [Op.ne]: 'system' }
+          },
+          required: true
+        })
       ]);
 
       return {
         users: userCount || 0,
         activeUsers: activeUserCount || 0,
+        onlineUsers: onlineUsers || 0,
         totalRooms: roomCount || 0,
-        totalMessages: messageCount || 0
+        totalMessages: (roomMessageCount || 0) + (directMessageCount || 0),
+        roomMessages: roomMessageCount || 0,
+        directMessages: directMessageCount || 0
       };
     } catch (error) {
       console.error('Error getting overall stats:', error);
@@ -30,39 +64,87 @@ function createStatisticsService() {
 
   async function getMessageStats(startDate, endDate) {
     try {
-      const messages = await Message.findAll({
+      // Get room messages between dates
+      const roomMessages = await RoomMessage.findAll({
         attributes: [
-          [sequelize.fn('date', sequelize.col('created_at')), 'date'],
-          [sequelize.fn('count', '*'), 'count']
+          [sequelize.fn('DATE', sequelize.col('RoomMessage.created_at')), 'date'],
+          [sequelize.fn('COUNT', '*'), 'count']
         ],
+        include: [{
+          model: User,
+          as: 'sender',
+          where: { role: { [Op.ne]: 'system' } },
+          attributes: []
+        }],
         where: {
           created_at: {
             [Op.between]: [startDate, endDate]
           }
         },
-        group: [sequelize.fn('date', sequelize.col('created_at'))],
-        order: [[sequelize.fn('date', sequelize.col('created_at')), 'ASC']]
+        group: [sequelize.fn('DATE', sequelize.col('RoomMessage.created_at'))],
+        order: [[sequelize.fn('DATE', sequelize.col('RoomMessage.created_at')), 'ASC']]
       });
 
-      // Fill in missing dates with zero counts
-      const stats = [];
+      // Get direct messages between dates
+      const directMessages = await DirectMessage.findAll({
+        attributes: [
+          [sequelize.fn('DATE', sequelize.col('DirectMessage.created_at')), 'date'],
+          [sequelize.fn('COUNT', '*'), 'count']
+        ],
+        include: [{
+          model: User,
+          as: 'sender',
+          where: { role: { [Op.ne]: 'system' } },
+          attributes: []
+        }],
+        where: {
+          created_at: {
+            [Op.between]: [startDate, endDate]
+          }
+        },
+        group: [sequelize.fn('DATE', sequelize.col('DirectMessage.created_at'))],
+        order: [[sequelize.fn('DATE', sequelize.col('DirectMessage.created_at')), 'ASC']]
+      });
+
+      // Combine and process the data
+      const messageMap = new Map();
       const currentDate = new Date(startDate);
       const endDateTime = new Date(endDate);
       
-
       while (currentDate <= endDateTime) {
         const dateStr = currentDate.toISOString().split('T')[0];
-        const existingData = messages.find(m => m.getDataValue('date') === dateStr);
-
-        stats.push({
+        messageMap.set(dateStr, {
           date: dateStr,
-          count: existingData ? parseInt(existingData.getDataValue('count')) : 0
+          roomMessages: 0,
+          directMessages: 0,
+          totalMessages: 0
         });
-
         currentDate.setDate(currentDate.getDate() + 1);
       }
 
-      return stats;
+      // Add room messages to map
+      roomMessages.forEach(msg => {
+        const date = msg.getDataValue('date');
+        const count = parseInt(msg.getDataValue('count'));
+        const data = messageMap.get(date);
+        if (data) {
+          data.roomMessages = count;
+          data.totalMessages += count;
+        }
+      });
+
+      // Add direct messages to map
+      directMessages.forEach(msg => {
+        const date = msg.getDataValue('date');
+        const count = parseInt(msg.getDataValue('count'));
+        const data = messageMap.get(date);
+        if (data) {
+          data.directMessages = count;
+          data.totalMessages += count;
+        }
+      });
+
+      return Array.from(messageMap.values());
     } catch (error) {
       console.error('Error getting message stats:', error);
       throw error;
@@ -71,34 +153,48 @@ function createStatisticsService() {
 
   async function getUserStats() {
     try {
-      const [roleDistribution, statusDistribution, topActiveUsers] = await Promise.all([
+      const [roleDistribution, statusDistribution, topUsers] = await Promise.all([
         User.findAll({
           attributes: [
             'role',
-            [sequelize.fn('count', '*'), 'value']
+            [sequelize.fn('COUNT', '*'), 'value']
           ],
+          where: { role: { [Op.ne]: 'system' } },
           group: ['role']
         }),
         User.findAll({
           attributes: [
             'status',
-            [sequelize.fn('count', '*'), 'value']
+            [sequelize.fn('COUNT', '*'), 'value']
           ],
+          where: { role: { [Op.ne]: 'system' } },
           group: ['status']
         }),
-        Message.findAll({
+        User.findAll({
+          where: { role: { [Op.ne]: 'system' } },
           attributes: [
-            'sender_id',
-            [sequelize.fn('count', '*'), 'message_count']
+            'id',
+            'username',
+            'display_name',
+            'avatar',
+            'status',
+            [
+              sequelize.literal(
+                '(SELECT COUNT(*) FROM room_messages WHERE sender_id = User.id)'
+              ),
+              'room_messages'
+            ],
+            [
+              sequelize.literal(
+                '(SELECT COUNT(*) FROM direct_messages WHERE sender_id = User.id)'
+              ),
+              'direct_messages'
+            ]
           ],
-          include: [{
-            model: User,
-            as: 'sender',
-            attributes: ['username', 'display_name']
-          }],
-          group: ['sender_id', 'sender.id', 'sender.username', 'sender.display_name'],
-          order: [[sequelize.fn('count', '*'), 'DESC']],
-          limit: 5
+          order: [
+            [sequelize.literal('room_messages + direct_messages'), 'DESC']
+          ],
+          limit: 10
         })
       ]);
 
@@ -111,9 +207,15 @@ function createStatisticsService() {
           status: s.status,
           value: parseInt(s.getDataValue('value'))
         })),
-        topActiveUsers: topActiveUsers.map(u => ({
-          username: u.sender.display_name || u.sender.username,
-          message_count: parseInt(u.getDataValue('message_count'))
+        topUsers: topUsers.map(u => ({
+          id: u.id,
+          username: u.display_name || u.username,
+          avatar: u.avatar,
+          status: u.status,
+          roomMessages: parseInt(u.getDataValue('room_messages')) || 0,
+          directMessages: parseInt(u.getDataValue('direct_messages')) || 0,
+          totalMessages: (parseInt(u.getDataValue('room_messages')) || 0) + 
+                        (parseInt(u.getDataValue('direct_messages')) || 0)
         }))
       };
     } catch (error) {
@@ -124,48 +226,62 @@ function createStatisticsService() {
 
   async function getRoomStats() {
     try {
-      const [topRooms, roomActivity] = await Promise.all([
-        Message.findAll({
-          attributes: [
-            'room_id',
-            [sequelize.fn('count', '*'), 'message_count']
+      const rooms = await ChatRoom.findAll({
+        attributes: [
+          'id',
+          'name',
+          [
+            sequelize.literal(`(
+              SELECT COUNT(*) 
+              FROM room_messages rm
+              JOIN users u ON rm.sender_id = u.id
+              WHERE rm.room_id = ChatRoom.id
+              AND u.role != 'system'
+            )`),
+            'message_count'
           ],
-          include: [{
-            model: ChatRoom,
-            as: 'room',
-            attributes: ['name']
-          }],
-          group: ['room_id', 'room.id', 'room.name'],
-          order: [[sequelize.fn('count', '*'), 'DESC']],
-          limit: 5
-        }),
-        ChatRoom.findAll({
-          attributes: [
-            'id',
-            'name',
-            [sequelize.fn('count', sequelize.col('messages.id')), 'total_messages'],
-            [sequelize.fn('count', sequelize.fn('DISTINCT', sequelize.col('messages.sender_id'))), 'unique_users']
-          ],
-          include: [{
-            model: Message,
-            as: 'messages',
-            attributes: []
-          }],
-          group: ['ChatRoom.id', 'ChatRoom.name'],
-          having: sequelize.literal('count(messages.id) > 0'),
-          order: [[sequelize.fn('count', sequelize.col('messages.id')), 'DESC']]
-        })
-      ]);
+          [
+            sequelize.literal(`(
+              SELECT COUNT(DISTINCT rm.sender_id)
+              FROM room_messages rm
+              JOIN users u ON rm.sender_id = u.id
+              WHERE rm.room_id = ChatRoom.id
+              AND u.role != 'system'
+            )`),
+            'active_users'
+          ]
+        ],
+        include: [
+          {
+            model: RoomMember,
+            as: 'RoomMembers',
+            attributes: ['status'],
+            required: false,
+            include: [{
+              model: User,
+              where: { role: { [Op.ne]: 'system' } },
+              attributes: []
+            }]
+          }
+        ],
+        group: ['ChatRoom.id', 'ChatRoom.name'],
+        having: sequelize.literal('message_count > 0'),
+        order: [[sequelize.literal('message_count'), 'DESC']],
+        limit: 10
+      });
 
       return {
-        topRooms: topRooms.map(r => ({
-          name: r.room.name,
-          message_count: parseInt(r.getDataValue('message_count'))
-        })),
-        roomActivity: roomActivity.map(r => ({
-          name: r.name,
-          total_messages: parseInt(r.getDataValue('total_messages')),
-          unique_users: parseInt(r.getDataValue('unique_users'))
+        topRooms: rooms.map(room => ({
+          id: room.id,
+          name: room.name,
+          messageCount: parseInt(room.getDataValue('message_count')) || 0,
+          activeUsers: parseInt(room.getDataValue('active_users')) || 0,
+          members: {
+            total: room.RoomMembers?.length || 0,
+            accepted: room.RoomMembers?.filter(m => m.status === 'accepted').length || 0,
+            pending: room.RoomMembers?.filter(m => m.status === 'pending').length || 0,
+            rejected: room.RoomMembers?.filter(m => m.status === 'rejected').length || 0
+          }
         }))
       };
     } catch (error) {
@@ -176,32 +292,88 @@ function createStatisticsService() {
 
   async function getRecentActivities(limit = 10) {
     try {
-      const activities = await Message.findAll({
-        attributes: ['id', 'content', 'created_at', 'type'],
-        include: [
-          {
-            model: User,
-            as: 'sender',
-            attributes: ['username', 'display_name']
-          },
-          {
-            model: ChatRoom,
-            as: 'room',
-            attributes: ['name']
-          }
-        ],
-        order: [['created_at', 'DESC']],
-        limit
-      });
+      const [roomActivities, directActivities] = await Promise.all([
+        RoomMessage.findAll({
+          attributes: ['id', 'content', 'created_at'],
+          include: [
+            {
+              model: User,
+              as: 'sender',
+              where: { role: { [Op.ne]: 'system' } },
+              attributes: ['username', 'display_name', 'avatar']
+            },
+            {
+              model: ChatRoom,
+              as: 'room',
+              attributes: ['name']
+            }
+          ],
+          order: [['created_at', 'DESC']],
+          limit: Math.ceil(limit / 2)
+        }),
+        DirectMessage.findAll({
+          attributes: ['id', 'content', 'created_at'],
+          include: [
+            {
+              model: User,
+              as: 'sender',
+              where: { role: { [Op.ne]: 'system' } },
+              attributes: ['username', 'display_name', 'avatar']
+            },
+            {
+              model: User,
+              as: 'receiver',
+              where: { role: { [Op.ne]: 'system' } },
+              attributes: ['username', 'display_name']
+            }
+          ],
+          order: [['created_at', 'DESC']],
+          limit: Math.ceil(limit / 2)
+        })
+      ]);
 
-      return activities.map(a => ({
-        id: a.id,
-        content: a.content,
-        created_at: a.created_at,
-        type: a.type,
-        sender_name: a.sender?.display_name || a.sender?.username || 'Người dùng không xác định',
-        room_name: a.room?.name || 'Phòng chat không xác định'
-      }));
+      const activities = [
+        ...roomActivities.map(a => {
+          if (!a || !a.sender || !a.room) return null;
+          return {
+            id: a.id,
+            type: 'room',
+            messageType: 'text', // Default to text since type isn't needed
+            content: a.content,
+            created_at: a.created_at,
+            sender: {
+              name: a.sender.display_name || a.sender.username,
+              avatar: a.sender.avatar
+            },
+            target: {
+              type: 'room',
+              name: a.room.name || 'Phòng không xác định'
+            }
+          };
+        }).filter(Boolean),
+        ...directActivities.map(a => {
+          if (!a || !a.sender || !a.receiver) return null;
+          return {
+            id: a.id,
+            type: 'direct',
+            messageType: 'text', // Default to text since type isn't needed
+            content: a.content,
+            created_at: a.created_at,
+            sender: {
+              name: a.sender.display_name || a.sender.username,
+              avatar: a.sender.avatar
+            },
+            target: {
+              type: 'user',
+              name: a.receiver.display_name || a.receiver.username
+            }
+          };
+        }).filter(Boolean)
+      ]
+      .sort((a, b) => b.created_at - a.created_at)
+      .slice(0, limit);
+
+      return activities;
     } catch (error) {
       console.error('Error getting recent activities:', error);
       throw error;

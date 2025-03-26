@@ -1,4 +1,4 @@
-const { sequelize, User, ChatRoom, Message, RoomMember, RoomBan, DirectMessage } = require('../models');
+const { sequelize, User, ChatRoom, RoomMessage, RoomMember, RoomBan, DirectMessage, Setting, ForbiddenWord } = require('../models');
 const seed = require('./seed');
 
 async function checkAndSeedDatabase() {
@@ -7,10 +7,12 @@ async function checkAndSeedDatabase() {
     const tables = {
       users: await User.count(),
       chatRooms: await ChatRoom.count(),
-      messages: await Message.count(),
+      roomMessages: await RoomMessage.count(),
       roomMembers: await RoomMember.count(),
       roomBans: await RoomBan.count(),
-      directMessages: await DirectMessage.count()
+      directMessages: await DirectMessage.count(),
+      settings: await Setting.count(),
+      forbiddenWords: await ForbiddenWord.count()
     };
 
     console.log('\nKiểm tra dữ liệu hiện có:');
@@ -29,10 +31,12 @@ async function checkAndSeedDatabase() {
       const verifyTables = {
         users: await User.count(),
         chatRooms: await ChatRoom.count(),
-        messages: await Message.count(),
+        roomMessages: await RoomMessage.count(),
         roomMembers: await RoomMember.count(),
         roomBans: await RoomBan.count(),
-        directMessages: await DirectMessage.count()
+        directMessages: await DirectMessage.count(),
+        settings: await Setting.count(),
+        forbiddenWords: await ForbiddenWord.count()
       };
 
       console.log('\nKết quả tạo dữ liệu mẫu:');
@@ -54,8 +58,8 @@ async function syncDatabase() {
   try {
     console.log('Bắt đầu đồng bộ hóa cơ sở dữ liệu...');
     
-    // Sync all tables without force or alter
-    await sequelize.sync();
+    // Force sync to recreate all tables
+    await sequelize.sync({ force: true });
     console.log('Đồng bộ hóa cơ sở dữ liệu hoàn tất!');
 
     // Check and seed database if needed

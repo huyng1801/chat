@@ -40,7 +40,7 @@ async function getChatUsers(req, res) {
     const users = await userService.getChatUsers({
       currentUserId,
       status: status || '',
-      excludeAdmin: true
+      excludeAdmin: false
     });
 
     res.json({ users });

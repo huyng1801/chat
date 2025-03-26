@@ -26,11 +26,21 @@ function createUserService() {
   }
 
   async function getUserByEmail(email) {
-    return User.findOne({ where: { email } });
+    return User.findOne({ 
+      where: { 
+        email,
+        role: { [Op.ne]: 'system' } 
+      }
+    });
   }
 
   async function getUserById(id) {
-    return User.findByPk(id);
+    return User.findOne({
+      where: { 
+        id,
+        role: { [Op.ne]: 'system' }
+      }
+    });
   }
 
   async function getAllUsers({ 
@@ -50,7 +60,10 @@ function createUserService() {
       const offset = (pageNum - 1) * limitNum;
 
       // Build where clause
-      const where = {};
+      const where = {
+        role: { [Op.ne]: 'system' } // Exclude system bot
+      };
+
       if (search) {
         where[Op.or] = [
           { username: { [Op.like]: `%${search}%` } },
@@ -95,10 +108,11 @@ function createUserService() {
     }
   }
 
-  async function getChatUsers({ currentUserId, status = '', excludeAdmin = true } = {}) {
+  async function getChatUsers({ currentUserId, status = '', excludeAdmin = false } = {}) {
     try {
       const where = {
         id: { [Op.ne]: currentUserId }, // Exclude current user
+        role: { [Op.ne]: 'system' }, // Exclude system bot
         is_active: true
       };
 
@@ -107,7 +121,12 @@ function createUserService() {
       }
 
       if (excludeAdmin) {
-        where.role = { [Op.ne]: 'admin' };
+        where.role = { 
+          [Op.and]: [
+            { [Op.ne]: 'system' },
+            { [Op.ne]: 'admin' }
+          ]
+        };
       }
 
       const users = await User.findAll({
@@ -129,7 +148,15 @@ function createUserService() {
   }
 
   async function updateUserStatus(id, status) {
-    return User.update({ status }, { where: { id } });
+    return User.update(
+      { status }, 
+      { 
+        where: { 
+          id,
+          role: { [Op.ne]: 'system' }
+        } 
+      }
+    );
   }
 
   async function updateUser(id, userData) {
@@ -142,25 +169,57 @@ function createUserService() {
       avatar,
       is_active: isActive
     }, {
-      where: { id }
+      where: { 
+        id,
+        role: { [Op.ne]: 'system' }
+      }
     });
   }
 
   async function updateAvatar(id, avatar) {
-    return User.update({ avatar }, { where: { id } });
+    return User.update(
+      { avatar }, 
+      { 
+        where: { 
+          id,
+          role: { [Op.ne]: 'system' }
+        } 
+      }
+    );
   }
 
   async function updateIsActive(id, isActive) {
-    return User.update({ is_active: isActive }, { where: { id } });
+    return User.update(
+      { is_active: isActive }, 
+      { 
+        where: { 
+          id,
+          role: { [Op.ne]: 'system' }
+        } 
+      }
+    );
   }
 
   async function deleteUser(id) {
-    return User.destroy({ where: { id } });
+    return User.destroy({ 
+      where: { 
+        id,
+        role: { [Op.ne]: 'system' }
+      } 
+    });
   }
 
   async function resetPassword(id, newPassword) {
     const passwordHash = await hashPassword(newPassword);
-    return User.update({ password_hash: passwordHash }, { where: { id } });
+    return User.update(
+      { password_hash: passwordHash }, 
+      { 
+        where: { 
+          id,
+          role: { [Op.ne]: 'system' }
+        } 
+      }
+    );
   }
 
   return {

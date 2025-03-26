@@ -1,6 +1,12 @@
 import React from 'react';
-import { Avatar, Badge, Button, Tooltip, Typography, Space, Dropdown } from 'antd';
-import { UserOutlined, TeamOutlined, InfoCircleOutlined, MoreOutlined } from '@ant-design/icons';
+import { Avatar, Badge, Button, Tooltip, Typography, Space } from 'antd';
+import { 
+  UserOutlined, 
+  TeamOutlined, 
+  InfoCircleOutlined,
+  StopOutlined,
+  LogoutOutlined
+} from '@ant-design/icons';
 
 const { Text } = Typography;
 
@@ -9,42 +15,12 @@ function ChatHeader({
   chatType,
   onViewDetails,
   onLeaveRoom,
-  onKickMember,
-  onBanUser,
-  currentUser,
-  isModerator
+  isModerator,
+  isMember,
+  onManageForbiddenWords,
+  isOwner
 }) {
   if (!activeChatInfo) return null;
-
-  const isCreator = activeChatInfo.created_by === currentUser?.id;
-  const canManage = isCreator || isModerator;
-
-  const memberActionItems = [
-    {
-      key: 'kick',
-      label: 'Kick khỏi phòng',
-      danger: true,
-      disabled: !canManage,
-      onClick: () => onKickMember(activeChatInfo.id)
-    },
-    {
-      key: 'ban',
-      label: 'Cấm tham gia phòng',
-      danger: true,
-      disabled: !canManage,
-      onClick: () => onBanUser(activeChatInfo.id)
-    },
-    {
-      type: 'divider'
-    },
-    {
-      key: 'leave',
-      label: 'Rời phòng',
-      danger: true,
-      disabled: isCreator,
-      onClick: () => onLeaveRoom(activeChatInfo.id)
-    }
-  ];
 
   return (
     <div style={{
@@ -81,23 +57,50 @@ function ChatHeader({
               style={{ fontSize: '12px' }}
             />
           ) : (
-            <Text type="secondary" style={{ fontSize: '12px' }}>
-              {activeChatInfo.member_count} thành viên • {activeChatInfo.message_count} tin nhắn
-            </Text>
+            <Space>
+              <Text type="secondary" style={{ fontSize: '12px' }}>
+                {activeChatInfo.member_count} thành viên • {activeChatInfo.message_count} tin nhắn
+              </Text>
+              {isMember ? (
+                <Badge status="success" text="Đã tham gia" style={{ fontSize: '12px' }} />
+              ) : (
+                <Badge status="default" text="Chưa tham gia" style={{ fontSize: '12px' }} />
+              )}
+            </Space>
           )}
         </Space>
       </div>
 
       <Space>
-   
-          <Tooltip title="Thông tin phòng">
+
+        
+      {chatType === 'room' && isMember && !isOwner && (
+          <Tooltip title="Rời phòng">
             <Button 
-              icon={<InfoCircleOutlined />} 
-              onClick={onViewDetails}
+              type="text" 
+              danger
+              icon={<LogoutOutlined />}
+              onClick={() => onLeaveRoom(activeChatInfo.id)}
             />
           </Tooltip>
+        )}
+        
+        {chatType === 'room' && (isModerator || isOwner) && (
+          <Tooltip title="Quản lý từ cấm">
+            <Button 
+              icon={<StopOutlined />}
+              onClick={onManageForbiddenWords}
+            />
+          </Tooltip>
+        )}
 
 
+        <Tooltip title="Thông tin">
+          <Button 
+            icon={<InfoCircleOutlined />} 
+            onClick={onViewDetails}
+          />
+        </Tooltip>
       </Space>
     </div>
   );

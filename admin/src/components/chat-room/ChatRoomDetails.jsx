@@ -1,13 +1,42 @@
-import React from 'react';
-import { Modal, Descriptions, List, Avatar, Space, Typography, Tag, Empty, Badge } from 'antd';
+import React, { useState, useEffect } from 'react';
+import { Modal, Descriptions, List, Avatar, Space, Typography, Tag, Empty, Badge, Spin } from 'antd';
 import { UserOutlined, MessageOutlined } from '@ant-design/icons';
 import { format } from 'date-fns';
 import { vi } from 'date-fns/locale';
+import { userService } from '../../services';
 
 const { Text } = Typography;
 
 function ChatRoomDetails({ room, visible, onClose }) {
-  if (!room) return null;
+  const [loading, setLoading] = useState(false);
+  const [members, setMembers] = useState([]);
+
+  useEffect(() => {
+    if (room?.members && visible) {
+      fetchMemberDetails();
+    }
+  }, [room, visible]);
+
+  const fetchMemberDetails = async () => {
+    try {
+      setLoading(true);
+      const memberDetails = await Promise.all(
+        room.members.map(async (member) => {
+          const userData = await userService.getUser(member.id);
+          return {
+            ...userData,
+            role: member.RoomMember.role,
+            joined_at: member.RoomMember.created_at
+          };
+        })
+      );
+      setMembers(memberDetails);
+    } catch (error) {
+      console.error('Error fetching member details:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const formatDate = (dateString) => {
     try {
@@ -16,6 +45,8 @@ function ChatRoomDetails({ room, visible, onClose }) {
       return 'Không xác định';
     }
   };
+
+  if (!room) return null;
 
   return (
     <Modal
@@ -48,9 +79,13 @@ function ChatRoomDetails({ room, visible, onClose }) {
 
       <div style={{ marginTop: 24 }}>
         <Text strong>Thành viên</Text>
-        {room.members?.length > 0 ? (
+        {loading ? (
+          <div style={{ textAlign: 'center', padding: '20px' }}>
+            <Spin />
+          </div>
+        ) : members.length > 0 ? (
           <List
-            dataSource={room.members}
+            dataSource={members}
             renderItem={member => (
               <List.Item>
                 <List.Item.Meta
@@ -76,9 +111,14 @@ function ChatRoomDetails({ room, visible, onClose }) {
                     </Space>
                   }
                   description={
-                    <Text type="secondary">
-                      Tham gia: {formatDate(member.joined_at)}
-                    </Text>
+                    <Space direction="vertical" size={0}>
+                      <Text type="secondary">
+                        Email: {member.email}
+                      </Text>
+                      <Text type="secondary">
+                        Tham gia: {formatDate(member.joined_at)}
+                      </Text>
+                    </Space>
                   }
                 />
               </List.Item>
@@ -88,8 +128,6 @@ function ChatRoomDetails({ room, visible, onClose }) {
           <Empty description="Chưa có thành viên nào" />
         )}
       </div>
-
-      
     </Modal>
   );
 }

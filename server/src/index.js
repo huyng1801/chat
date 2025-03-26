@@ -3,62 +3,11 @@ const express = require('express');
 const http = require('http');
 const { Server } = require('socket.io');
 const cors = require('cors');
-const { sequelize, User, ChatRoom, Message, RoomMember, RoomBan, DirectMessage } = require('./models');
-const authRoutes = require('./routes/authRoutes');
-const userRoutes = require('./routes/userRoutes');
-const chatRoutes = require('./routes/chatRoutes');
-const statisticsRoutes = require('./routes/statisticsRoutes');
+const { sequelize } = require('./models');
+const routes = require('./routes');
 const createChatHandler = require('./socket/chatHandler');
+const createAnnouncementService = require('./services/announcementService');
 const seed = require('./database/seed');
-
-async function checkAndSeedDatabase() {
-  try {
-    // Check each table for existing data
-    const tables = {
-      users: await User.count(),
-      chatRooms: await ChatRoom.count(),
-      messages: await Message.count(),
-      roomMembers: await RoomMember.count(),
-      roomBans: await RoomBan.count(),
-      directMessages: await DirectMessage.count()
-    };
-
-    console.log('\nKiểm tra dữ liệu hiện có:');
-    Object.entries(tables).forEach(([table, count]) => {
-      console.log(`- ${table}: ${count} bản ghi`);
-    });
-
-    // If any table is empty, perform seeding
-    const hasEmptyTables = Object.values(tables).some(count => count === 0);
-    
-    if (hasEmptyTables) {
-      console.log('\nPhát hiện bảng trống, bắt đầu tạo dữ liệu mẫu...');
-      await seed();
-      
-      // Verify seeding results
-      const verifyTables = {
-        users: await User.count(),
-        chatRooms: await ChatRoom.count(),
-        messages: await Message.count(),
-        roomMembers: await RoomMember.count(),
-        roomBans: await RoomBan.count(),
-        directMessages: await DirectMessage.count()
-      };
-
-      console.log('\nKết quả tạo dữ liệu mẫu:');
-      Object.entries(verifyTables).forEach(([table, count]) => {
-        console.log(`- ${table}: ${count} bản ghi`);
-      });
-    } else {
-      console.log('\nTất cả các bảng đã có dữ liệu, bỏ qua bước tạo dữ liệu mẫu.');
-    }
-
-    return true;
-  } catch (error) {
-    console.error('Lỗi khi kiểm tra và tạo dữ liệu mẫu:', error);
-    throw error;
-  }
-}
 
 async function startServer() {
   try {
@@ -68,7 +17,7 @@ async function startServer() {
     console.log('Đồng bộ hóa hoàn tất!');
 
     // Check and seed database if needed
-    await checkAndSeedDatabase();
+    await seed();
 
     const app = express();
     const server = http.createServer(app);
@@ -76,18 +25,23 @@ async function startServer() {
       cors: {
         origin: "*",
         methods: ["GET", "POST"]
-      }
+      },
+      maxHttpBufferSize: 5e6 // 5MB for Socket.IO
     });
+
+    // Initialize announcement service with socket.io
+    const announcementService = createAnnouncementService(io);
+    await announcementService.initializeScheduledAnnouncements();
 
     // Middleware
     app.use(cors());
-    app.use(express.json());
+    // Increase JSON payload limit to 5MB
+    app.use(express.json({ limit: '5mb' }));
+    // Increase URL-encoded payload limit to 5MB
+    app.use(express.urlencoded({ limit: '5mb', extended: true }));
 
-    // Routes
-    app.use('/api/auth', authRoutes);
-    app.use('/api/users', userRoutes);
-    app.use('/api/chat', chatRoutes);
-    app.use('/api/statistics', statisticsRoutes);
+    // Mount all routes under /api
+    app.use('/api', routes);
 
     // Socket.IO handling
     const chatHandler = createChatHandler(io);
@@ -96,7 +50,19 @@ async function startServer() {
     // Error handling middleware
     app.use((err, req, res, next) => {
       console.error(err.stack);
+      if (err.type === 'entity.too.large') {
+        return res.status(413).json({ 
+          error: 'Kích thước dữ liệu vượt quá giới hạn cho phép (5MB)'
+        });
+      }
       res.status(500).json({ error: 'Đã xảy ra lỗi!' });
+    });
+
+    // Cleanup on server shutdown
+    process.on('SIGTERM', () => {
+      console.log('Server shutting down...');
+      announcementService.cleanup();
+      process.exit(0);
     });
 
     const PORT = process.env.PORT || 3001;

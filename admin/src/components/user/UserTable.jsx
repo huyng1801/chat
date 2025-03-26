@@ -1,21 +1,62 @@
 import React from 'react';
 import { Table, Button, Space, Tag, Badge, Avatar, Typography, Tooltip, Popconfirm, Switch } from 'antd';
-import { MessageOutlined, EditOutlined, DeleteOutlined, UserOutlined, UnlockOutlined } from '@ant-design/icons';
+import { 
+  MessageOutlined, 
+  EditOutlined, 
+  DeleteOutlined, 
+  UserOutlined, 
+  UnlockOutlined,
+  StarFilled,
+  CrownFilled
+} from '@ant-design/icons';
 import { format } from 'date-fns';
 import { vi } from 'date-fns/locale';
 
 const { Text } = Typography;
 
-const roleColors = {
-  admin: '#ff4d4f',
-  moderator: '#faad14',
-  user: '#52c41a'
-};
-
-const roleLabels = {
-  admin: 'Quản trị viên',
-  moderator: 'Điều hành viên',
-  user: 'Người dùng'
+const roleConfig = {
+  owner: {
+    color: '#ffd700', // Golden yellow color
+    stars: [
+      <CrownFilled key="crown" style={{ 
+        color: '#ffd700', 
+        fontSize: '20px',
+      }}/>,
+      <CrownFilled key="crown" style={{ 
+        color: '#ffd700', 
+        fontSize: '20px',
+      }}/>,
+      <CrownFilled key="crown" style={{ 
+        color: '#ffd700', 
+        fontSize: '20px',
+      }}/>
+    ],
+    label: 'Chủ sở hữu'
+  },
+  admin: {
+    color: '#faad14',
+    stars: [
+      <StarFilled key="1" style={{ color: '#faad14', fontSize: '20px' }}/>,
+      <StarFilled key="2" style={{ color: '#faad14', fontSize: '20px' }}/>,
+      <StarFilled key="3" style={{ color: '#faad14', fontSize: '20px' }}/>
+    ],
+    label: 'Quản trị viên'
+  },
+  moderator: {
+    color: '#1677ff',
+    stars: [
+      <StarFilled key="1" style={{ color: '#1677ff', fontSize: '20px' }}/>,
+      <StarFilled key="2" style={{ color: '#1677ff', fontSize: '20px' }}/>
+    ],
+    label: 'Điều hành viên'
+  },
+  user: {
+    color: '#52c41a',
+    stars: [
+      <StarFilled key="1" style={{ color: '#52c41a', fontSize: '20px' }}/>
+    ],
+    label: 'Người dùng'
+  }
 };
 
 function UserTable({ 
@@ -32,29 +73,22 @@ function UserTable({
 }) {
   // Function to check if current user can manage target user
   const canManageUser = (targetUser) => {
-    // Admin can manage everyone except themselves
-    if (currentUser.role === 'admin') {
+    // Owner can manage everyone except themselves
+    if (currentUser.role === 'owner') {
       return targetUser.id !== currentUser.id;
     }
     
-    // Moderator can only manage regular users and cannot modify roles
+    // Admin can manage moderators and users, but not owner or other admins
+    if (currentUser.role === 'admin') {
+      return ['moderator', 'user'].includes(targetUser.role) && targetUser.id !== currentUser.id;
+    }
+    
+    // Moderator can only manage regular users
     if (currentUser.role === 'moderator') {
       return targetUser.role === 'user';
     }
     
     return false;
-  };
-
-  // Function to check if user can edit role
-  const canEditRole = (targetUser) => {
-    // Only admin can edit roles
-    return currentUser.role === 'admin' && targetUser.id !== currentUser.id;
-  };
-
-  // Function to check if user can create new users
-  const canCreateUser = () => {
-    // Only admin can create users
-    return currentUser.role === 'admin';
   };
 
   const columns = [
@@ -68,7 +102,7 @@ function UserTable({
           src={record.avatar} 
           icon={<UserOutlined />}
           style={{ 
-            backgroundColor: !record.avatar ? roleColors[record.role] : 'transparent',
+            backgroundColor: !record.avatar ? roleConfig[record.role].color : 'transparent',
             opacity: record.is_active ? 1 : 0.5
           }}
         />
@@ -105,9 +139,23 @@ function UserTable({
       dataIndex: "role",
       key: "role",
       render: (role) => (
-        <Tag color={roleColors[role]}>
-          {roleLabels[role]}
-        </Tag>
+        <Space direction="vertical" size={2} align="center">
+          <Space size={2} style={{ 
+            display: 'flex', 
+            justifyContent: 'center',
+            padding: '4px 0'
+          }}>
+            {roleConfig[role].stars}
+          </Space>
+          <Text style={{ 
+            fontSize: '12px', 
+            color: roleConfig[role].color,
+            textAlign: 'center',
+            display: 'block'
+          }}>
+            {roleConfig[role].label}
+          </Text>
+        </Space>
       ),
     },
     {
@@ -146,7 +194,6 @@ function UserTable({
       width: 200,
       render: (_, record) => {
         const canManage = canManageUser(record);
-        const canModifyRole = canEditRole(record);
         
         return (
           <Space>
@@ -154,7 +201,7 @@ function UserTable({
               <Button 
                 icon={<EditOutlined />} 
                 onClick={() => onEdit(record)}
-                disabled={!canManage && !canModifyRole}
+                disabled={!canManage}
               />
             </Tooltip>
 

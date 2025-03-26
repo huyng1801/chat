@@ -1,16 +1,16 @@
-import React, { useState, useEffect } from 'react';
+import React from 'react';
 import { Row, Col, Typography, DatePicker, Spin, Card } from 'antd';
 import { UserOutlined, MessageOutlined, TeamOutlined, ClockCircleOutlined } from '@ant-design/icons';
 import { Chart as ChartJS, CategoryScale, LinearScale, PointElement, LineElement, BarElement, ArcElement, Title, Tooltip, Legend } from 'chart.js';
-import dayjs from 'dayjs';
-import { statisticsService } from '../services';
 import { colors } from '../constants/colors';
+import { useDashboard } from '../hooks/useDashboard';
 
 import StatisticCard from '../components/dashboard/StatisticCard';
 import ActivityChart from '../components/dashboard/ActivityChart';
 import UserDistributionChart from '../components/dashboard/UserDistributionChart';
 import RoomActivityChart from '../components/dashboard/RoomActivityChart';
 import ActivityTable from '../components/dashboard/ActivityTable';
+import TopUsersTable from '../components/dashboard/TopUsersTable';
 
 ChartJS.register(
   CategoryScale,
@@ -28,59 +28,7 @@ const { Title: AntTitle } = Typography;
 const { RangePicker } = DatePicker;
 
 function Dashboard() {
-  const [loading, setLoading] = useState(true);
-  const [stats, setStats] = useState({
-    overall: null,
-    messages: [],
-    users: null,
-    rooms: null,
-    activities: []
-  });
-  
-  const [dateRange, setDateRange] = useState([
-    dayjs().subtract(14, 'day'),
-    dayjs().add(1, 'day')
-  ]);
-
-  useEffect(() => {
-    fetchDashboardData();
-  }, [dateRange]);
-
-  const fetchDashboardData = async () => {
-    try {
-      setLoading(true);
-      const [startDate, endDate] = dateRange;
-
-      const [
-        overallStats,
-        messageStats,
-        userStats,
-        roomStats,
-        activities
-      ] = await Promise.all([
-        statisticsService.getOverallStats(),
-        statisticsService.getMessageStats(
-          startDate.format('YYYY-MM-DD'),
-          endDate.format('YYYY-MM-DD')
-        ),
-        statisticsService.getUserStats(),
-        statisticsService.getRoomStats(),
-        statisticsService.getRecentActivities()
-      ]);
-
-      setStats({
-        overall: overallStats,
-        messages: messageStats,
-        users: userStats,
-        rooms: roomStats,
-        activities
-      });
-    } catch (error) {
-      console.error('Lỗi khi tải dữ liệu:', error);
-    } finally {
-      setLoading(false);
-    }
-  };
+  const { loading, stats, dateRange, setDateRange } = useDashboard();
 
   if (loading && !stats.overall) {
     return (
@@ -146,7 +94,7 @@ function Dashboard() {
         </Col>
         <Col xs={24} sm={12} lg={6}>
           <StatisticCard
-            title="Tổng tin nhắn"
+            title="Tin nhắn"
             value={stats.overall?.totalMessages}
             prefix={<MessageOutlined style={{ color: colors.success }} />}
             loading={loading}
@@ -165,7 +113,7 @@ function Dashboard() {
         <Col xs={24} sm={12} lg={6}>
           <StatisticCard
             title="Đang hoạt động"
-            value={stats.overall?.activeUsers}
+            value={stats.overall?.onlineUsers?.length || 0}
             prefix={<ClockCircleOutlined style={{ color: colors.info }} />}
             loading={loading}
             color={colors.info}
@@ -176,6 +124,7 @@ function Dashboard() {
       <Row gutter={[16, 16]} style={{ marginBottom: '24px' }}>
         <Col xs={24} lg={16}>
           <Card
+            title="Thống kê tin nhắn"
             style={{
               borderRadius: '8px',
               boxShadow: `0 2px 8px ${colors.shadowPrimary}`
@@ -189,6 +138,7 @@ function Dashboard() {
         </Col>
         <Col xs={24} lg={8}>
           <Card
+            title="Phân bố người dùng"
             style={{
               borderRadius: '8px',
               boxShadow: `0 2px 8px ${colors.shadowPrimary}`
@@ -202,12 +152,14 @@ function Dashboard() {
         </Col>
       </Row>
 
-      <Row gutter={[16, 16]} style={{ marginBottom: '24px' }}>
-        <Col xs={24}>
+      <Row gutter={[16, 16]} align="stretch" style={{ marginBottom: '24px' }}>
+        <Col xs={24} lg={12}>
           <Card
+            title="Top phòng chat hoạt động"
             style={{
               borderRadius: '8px',
-              boxShadow: `0 2px 8px ${colors.shadowPrimary}`
+              boxShadow: `0 2px 8px ${colors.shadowPrimary}`,
+              height: '100%' // Ensure full height
             }}
           >
             <RoomActivityChart 
@@ -216,9 +168,26 @@ function Dashboard() {
             />
           </Card>
         </Col>
+        <Col xs={24} lg={12}>
+          <Card
+            title="Top người dùng hoạt động"
+            style={{
+              borderRadius: '8px',
+              boxShadow: `0 2px 8px ${colors.shadowPrimary}`,
+              height: '100%' // Ensure full height
+            }}
+          >
+            <TopUsersTable 
+              data={stats.users?.topUsers} 
+              loading={loading} 
+            />
+          </Card>
+        </Col>
       </Row>
 
+
       <Card
+        title="Hoạt động gần đây"
         style={{
           borderRadius: '8px',
           boxShadow: `0 2px 8px ${colors.shadowPrimary}`
