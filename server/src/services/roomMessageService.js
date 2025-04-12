@@ -2,10 +2,12 @@ const { RoomMessage, User, RoomMember, sequelize } = require('../models');
 const { Op } = require('sequelize');
 const createMessageCounterService = require('./messageCounterService');
 const createForbiddenWordService = require('./forbiddenWordService');
+const createAutoReplyService = require('./autoReplyService');
 
 function createRoomMessageService() {
   const messageCounterService = createMessageCounterService();
   const forbiddenWordService = createForbiddenWordService();
+  const autoReplyService = createAutoReplyService();
 
   async function getMessagesByRoom(roomId, userId, page = 1, limit = 20) {
     const t = await sequelize.transaction();
@@ -34,9 +36,17 @@ function createRoomMessageService() {
         transaction: t
       });
 
-      // Mark messages as read in background
-      messageCounterService.markAsRead('room', userId, roomId).catch(console.error);
-
+      if (!(page === 1 && limit === 1)) {
+        // "Fire and forget" - bắn đi và không cần đợi kết quả, chỉ log lỗi
+        messageCounterService.markAsRead('room', userId, roomId)
+          .then(() => {
+          })
+          .catch(err => {
+            // Chỉ log lỗi, không làm gì khác để không ảnh hưởng đến client
+          });
+      } else {
+          // Log rằng đã bỏ qua (tùy chọn, hữu ích khi debug)
+      }
       await t.commit();
 
       return {
@@ -128,14 +138,14 @@ function createRoomMessageService() {
         transaction: t
       });
 
-      // // Update message counters for all room members
-      // const recipientIds = members.map(m => m.user_id);
-      // await messageCounterService.incrementMessageCount(
-      //   'room',
-      //   roomId,
-      //   senderId,
-      //   recipientIds
-      // );
+      // Update message counters for all room members
+      const recipientIds = members.map(m => m.user_id);
+      await messageCounterService.incrementMessageCount(
+        'room',
+        roomId,
+        senderId,
+        recipientIds
+      );
 
       // Get message with sender details
       const messageWithDetails = await RoomMessage.findOne({
@@ -150,8 +160,58 @@ function createRoomMessageService() {
         transaction: t
       });
 
+      // Check for auto-reply
+      const { matched, reply } = await autoReplyService.checkMessage(roomId, modifiedContent);
+      
+      let autoReplyMessage = null;
+      if (matched && reply) {
+        // Get system bot user
+        const botUser = await User.findOne({
+          where: { username: 'system' },
+          transaction: t
+        });
+
+        if (botUser) {
+          // Create auto-reply message
+          autoReplyMessage = await RoomMessage.create({
+            room_id: roomId,
+            sender_id: botUser.id,
+            content: reply,
+            type: 'text'
+          }, {
+            transaction: t,
+            lock: t.LOCK.UPDATE
+          });
+
+          // Get auto-reply message with sender details
+          autoReplyMessage = await RoomMessage.findOne({
+            where: { id: autoReplyMessage.id },
+            include: [
+              {
+                model: User,
+                as: 'sender',
+                attributes: ['id', 'username', 'display_name', 'avatar', 'role']
+              }
+            ],
+            transaction: t
+          });
+
+          // Update message counters for auto-reply
+          await messageCounterService.incrementMessageCount(
+            'room',
+            roomId,
+            botUser.id,
+            recipientIds
+          );
+        }
+      }
+
       await t.commit();
-      return messageWithDetails;
+
+      return {
+        message: messageWithDetails,
+        autoReply: autoReplyMessage
+      };
     } catch (error) {
       await t.rollback();
       console.error('Error in createMessage:', error);

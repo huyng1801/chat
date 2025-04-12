@@ -50,8 +50,8 @@ function createDirectMessageService() {
         content,
         type
       });
-
-      return DirectMessage.findOne({
+  
+      const fullMessage = await DirectMessage.findOne({
         where: { id: message.id },
         include: [{
           model: User,
@@ -59,11 +59,15 @@ function createDirectMessageService() {
           attributes: ['id', 'username', 'display_name', 'avatar']
         }]
       });
+  
+      return { message: fullMessage }; 
     } catch (error) {
       console.error('Error in createDirectMessage:', error);
       throw error;
     }
   }
+  
+  
 
   return {
     getDirectMessages,

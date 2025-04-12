@@ -65,9 +65,9 @@ async function createMessage(req, res) {
 
     // Transform message for response
     const messageResponse = {
-      ...message.toJSON(),
-      sender_name: message.sender.display_name || message.sender.username,
-      sender_avatar: message.sender.avatar
+      ...message.message.toJSON(),
+      sender_name: message.message.sender.display_name || message.message.sender.username,
+      sender_avatar: message.message.sender.avatar
     };
 
     res.json(messageResponse);
@@ -88,9 +88,9 @@ async function getUnreadMessageCount(req, res) {
     const members = await roomMemberService.getRoomMembers(roomId);
     const isMember = members.some(m => m.id === userId);
 
-    if (!isMember) {
-      throw new Error('Không có quyền xem trạng thái tin nhắn trong phòng này');
-    }
+    // if (!isMember) {
+    //   throw new Error('Không có quyền xem trạng thái tin nhắn trong phòng này');
+    // }
 
     const count = await roomMessageService.getUnreadMessageCount(roomId, userId);
 

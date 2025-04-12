@@ -12,6 +12,7 @@ const statisticsRoutes = require('./statisticsRoutes');
 const announcementRoutes = require('./announcementRoutes');
 const forbiddenWordRoutes = require('./forbiddenWordRoutes');
 const settingRoutes = require('./settingRoutes');
+const autoReplyRoutes = require('./autoReplyRoutes');
 
 // Mount routes
 router.use('/auth', authRoutes);
@@ -23,7 +24,8 @@ router.use('/rooms', roomMessageRoutes); // Shares /rooms base path
 router.use('/direct', directMessageRoutes);
 router.use('/statistics', statisticsRoutes);
 router.use('/announcements', announcementRoutes);
-router.use('/rooms', forbiddenWordRoutes);
+router.use('/forbidden-words', forbiddenWordRoutes);
 router.use('/settings', settingRoutes);
+router.use('/auto-replies', autoReplyRoutes);
 
 module.exports = router;

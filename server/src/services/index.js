@@ -9,5 +9,7 @@ module.exports = {
   createStatisticsService: require('./statisticsService'),
   createAnnouncementService: require('./announcementService'),
   createForbiddenWordService: require('./forbiddenWordService'),
-  createSettingService: require('./settingService')
+  createSettingService: require('./settingService'),
+  createAutoReplyService: require('./autoReplyService'),
+  createMessageCounterService: require('./messageCounterService')
 };

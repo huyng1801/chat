@@ -7,6 +7,8 @@ const seedDirectMessages = require('./seeds/directMessageSeed');
 const seedRoomBans = require('./seeds/roomBanSeed');
 const seedSettings = require('./seeds/settingSeed');
 const seedForbiddenWords = require('./seeds/forbiddenWordSeed');
+const seedAutoReplies = require('./seeds/autoReplySeed');
+const seedBotConfigs = require('./seeds/botConfigSeed');
 
 async function seed() {
   try {
@@ -20,6 +22,8 @@ async function seed() {
     await seedRoomBans(users, rooms);
     await seedSettings(users);
     await seedForbiddenWords(users, rooms);
+    await seedAutoReplies(users);
+    await seedBotConfigs(users);
 
     console.log('Hoàn thành tạo dữ liệu mẫu!');
     return true;

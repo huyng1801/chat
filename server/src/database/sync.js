@@ -1,4 +1,4 @@
-const { sequelize, User, ChatRoom, RoomMessage, RoomMember, RoomBan, DirectMessage, Setting, ForbiddenWord } = require('../models');
+const { sequelize, User, ChatRoom, RoomMessage, RoomMember, RoomBan, DirectMessage, Setting, ForbiddenWord, AutoReply, BotConfig } = require('../models');
 const seed = require('./seed');
 
 async function checkAndSeedDatabase() {
@@ -12,7 +12,9 @@ async function checkAndSeedDatabase() {
       roomBans: await RoomBan.count(),
       directMessages: await DirectMessage.count(),
       settings: await Setting.count(),
-      forbiddenWords: await ForbiddenWord.count()
+      forbiddenWords: await ForbiddenWord.count(),
+      autoReplies: await AutoReply.count(),
+      botConfigs: await BotConfig.count()
     };
 
     console.log('\nKiểm tra dữ liệu hiện có:');
@@ -36,7 +38,9 @@ async function checkAndSeedDatabase() {
         roomBans: await RoomBan.count(),
         directMessages: await DirectMessage.count(),
         settings: await Setting.count(),
-        forbiddenWords: await ForbiddenWord.count()
+        forbiddenWords: await ForbiddenWord.count(),
+        autoReplies: await AutoReply.count(),
+        botConfigs: await BotConfig.count()
       };
 
       console.log('\nKết quả tạo dữ liệu mẫu:');

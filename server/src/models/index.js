@@ -14,6 +14,8 @@ const MessageCounter = require('./messageCounter')(sequelize);
 const ForbiddenWord = require('./forbiddenWord')(sequelize);
 const Announcement = require('./announcement')(sequelize);
 const Setting = require('./setting')(sequelize);
+const AutoReply = require('./autoReply')(sequelize);
+const BotConfig = require('./botConfig')(sequelize);
 
 // Define associations
 User.hasMany(RoomMessage, { foreignKey: 'sender_id', as: 'messages' });
@@ -54,6 +56,20 @@ Announcement.belongsTo(ChatRoom, { foreignKey: 'room_id', as: 'room' });
 // Settings associations
 User.hasMany(Setting, { foreignKey: 'created_by', as: 'createdSettings' });
 Setting.belongsTo(User, { foreignKey: 'created_by', as: 'creator' });
+
+// Auto Reply associations
+User.hasMany(AutoReply, { foreignKey: 'created_by', as: 'createdAutoReplies' });
+AutoReply.belongsTo(User, { foreignKey: 'created_by', as: 'creator' });
+
+ChatRoom.hasMany(AutoReply, { foreignKey: 'room_id', as: 'autoReplies' });
+AutoReply.belongsTo(ChatRoom, { foreignKey: 'room_id', as: 'room' });
+
+// Bot Config associations
+User.hasMany(BotConfig, { foreignKey: 'created_by', as: 'createdBotConfigs' });
+BotConfig.belongsTo(User, { foreignKey: 'created_by', as: 'creator' });
+
+ChatRoom.hasMany(BotConfig, { foreignKey: 'room_id', as: 'botConfigs' });
+BotConfig.belongsTo(ChatRoom, { foreignKey: 'room_id', as: 'room' });
 
 // Many-to-Many: Users <-> ChatRooms through RoomMembers
 User.belongsToMany(ChatRoom, { 
@@ -98,5 +114,7 @@ module.exports = {
   MessageCounter,
   ForbiddenWord,
   Announcement,
-  Setting
+  Setting,
+  AutoReply,
+  BotConfig
 };
