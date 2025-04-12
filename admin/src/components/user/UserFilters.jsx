@@ -10,16 +10,17 @@ function UserFilters({ filters, onChange, onReset }) {
         allowClear
         prefix={<SearchOutlined />}
         value={filters.search}
-        onChange={e => onChange({ search: e.target.value })}
+        onChange={e => onChange({ search: e.target.value || '' })}
         style={{ width: 200 }}
       />
+
       
       <Select
         placeholder="Vai trò"
         allowClear
         style={{ width: 120 }}
-        value={filters.role}
-        onChange={value => onChange({ role: value })}
+        value={filters.role || undefined}
+        onChange={value => onChange({ role: value || '' })}
       >
         <Select.Option value="owner">Chủ sở hữu</Select.Option>
         <Select.Option value="admin">Quản trị viên</Select.Option>
@@ -31,8 +32,8 @@ function UserFilters({ filters, onChange, onReset }) {
         placeholder="Trạng thái"
         allowClear
         style={{ width: 120 }}
-        value={filters.status}
-        onChange={value => onChange({ status: value })}
+        value={filters.status || undefined}
+        onChange={value => onChange({ status: value || '' })}
       >
         <Select.Option value="online">Đang hoạt động</Select.Option>
         <Select.Option value="offline">Không hoạt động</Select.Option>
@@ -42,12 +43,13 @@ function UserFilters({ filters, onChange, onReset }) {
         placeholder="Tài khoản"
         allowClear
         style={{ width: 120 }}
-        value={filters.isActive}
-        onChange={value => onChange({ isActive: value })}
+        value={filters.isActive !== null ? filters.isActive : undefined}
+        onChange={value => onChange({ isActive: value ?? null })}
       >
         <Select.Option value={true}>Đã kích hoạt</Select.Option>
         <Select.Option value={false}>Đã vô hiệu</Select.Option>
       </Select>
+
 
       <Button 
         icon={<ReloadOutlined />} 

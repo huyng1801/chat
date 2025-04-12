@@ -1,14 +1,16 @@
-import React from "react";
-import { Layout, Menu, Avatar, Typography, Space, Tag } from "antd";
-import { 
-  DashboardOutlined, 
-  UserOutlined, 
-  MessageOutlined, 
+import React, { useEffect, useState } from "react";
+import { Layout, Menu, Avatar, Typography, Space, Tag, Badge } from "antd";
+import {
+  DashboardOutlined,
+  UserOutlined,
+  MessageOutlined,
   CommentOutlined,
-  SettingOutlined
+  SettingOutlined,
+  RobotOutlined
 } from "@ant-design/icons";
 import { useNavigate, useLocation } from "react-router-dom";
 import { useAuth } from "../../context/AuthContext";
+import { chatService } from "../../services";
 import { colors } from "../../constants/colors";
 
 const { Sider } = Layout;
@@ -32,17 +34,73 @@ function Sidebar() {
   const navigate = useNavigate();
   const location = useLocation();
   const { user } = useAuth();
+  const [unreadCounts, setUnreadCounts] = useState({});
+  const [rooms, setRooms] = useState([]);
+
+  useEffect(() => {
+    fetchRooms();
+  }, []);
+
+  useEffect(() => {
+    if (rooms.length > 0) {
+      fetchUnreadCounts();
+      // Consider setting up interval or WebSocket listener for updates
+    }
+  }, [rooms]);
+
+  const fetchRooms = async () => {
+    try {
+      const { rooms: roomData } = await chatService.getRooms();
+      setRooms(roomData || []);
+    } catch (error) {
+      console.error('Error fetching rooms:', error);
+    }
+  };
+
+  const fetchUnreadCounts = async () => {
+    if (!rooms || rooms.length === 0) return;
+    try {
+      const roomIds = rooms.map(room => room.id);
+      const counts = await chatService.getUnreadMessageCounts(roomIds);
+      console.log('Fetched unread counts:', counts);
+      setUnreadCounts(counts || {});
+    } catch (error) {
+      console.error('Error fetching unread counts:', error);
+      setUnreadCounts({});
+    }
+  };
+
+  const getTotalUnreadCount = () => {
+    return Object.values(unreadCounts).reduce((sum, count) => sum + (Number(count) || 0), 0);
+  };
 
   const handleMenuClick = ({ key }) => {
     navigate(key);
   };
 
+  const totalUnread = getTotalUnreadCount();
   const menuItems = [
     { key: "/", icon: <DashboardOutlined />, label: "Bảng điều khiển" },
     { key: "/users", icon: <UserOutlined />, label: "Quản lý người dùng" },
     { key: "/chat-rooms", icon: <MessageOutlined />, label: "Danh sách phòng chat" },
-    { key: "/chat", icon: <CommentOutlined />, label: "Tin nhắn" },
-    // Only show settings for owner
+    {
+      key: "/chat",
+      icon: <CommentOutlined />,
+      label: (
+        <Space size="small">
+          <span>Tin nhắn</span>
+          {totalUnread > 0 && (
+            <Badge
+              count={totalUnread}
+              size="small"
+              offset={[5, -2]}
+              style={{ marginLeft: '8px' }}
+            />
+          )}
+        </Space>
+      ),
+    },
+    { key: "/auto-replies", icon: <RobotOutlined />, label: "Phản hồi tự động" },
     ...(user?.role === 'owner' ? [
       { key: "/settings", icon: <SettingOutlined />, label: "Cài đặt hệ thống" }
     ] : [])
@@ -71,8 +129,8 @@ function Sidebar() {
           border: "1px solid rgba(255, 255, 255, 0.1)",
         }}
       >
-        <div style={{ 
-          display: "flex", 
+        <div style={{
+          display: "flex",
           flexDirection: "column",
           alignItems: "center",
           gap: "16px"
@@ -88,7 +146,7 @@ function Sidebar() {
                 boxShadow: '0 4px 12px rgba(0, 0, 0, 0.15)'
               }}
             />
-            <div
+             <div
               style={{
                 position: 'absolute',
                 bottom: 0,
@@ -102,30 +160,30 @@ function Sidebar() {
               }}
             />
           </div>
-          
+
           <Space direction="vertical" size={4} style={{ textAlign: "center" }}>
-            <Text 
-              strong 
-              style={{ 
-                color: "#fff", 
+            <Text
+              strong
+              style={{
+                color: "#fff",
                 fontSize: "18px",
                 textShadow: '0 2px 4px rgba(0, 0, 0, 0.1)'
               }}
             >
               {user?.display_name || user?.username}
             </Text>
-            
-            <Text style={{ 
-              color: "rgba(255, 255, 255, 0.8)", 
+
+            <Text style={{
+              color: "rgba(255, 255, 255, 0.8)",
               fontSize: "14px",
               fontWeight: "500"
             }}>
               @{user?.username}
             </Text>
 
-            <Tag 
-              color={roleColors[user?.role]} 
-              style={{ 
+            <Tag
+              color={roleColors[user?.role]}
+              style={{
                 margin: '8px 0',
                 padding: '4px 12px',
                 borderRadius: '12px',
@@ -142,14 +200,10 @@ function Sidebar() {
       <Menu
         theme="dark"
         mode="inline"
-        selectedKeys={[location.pathname]}
+        selectedKeys={[location.pathname.startsWith('/chat/') ? '/chat' : location.pathname]}
         items={menuItems}
         onClick={handleMenuClick}
-        style={{
-          background: 'transparent',
-          borderRight: 'none',
-          padding: '8px 12px'
-        }}
+        style={{ background: colors.primary }}
       />
     </Sider>
   );

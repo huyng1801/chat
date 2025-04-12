@@ -36,6 +36,7 @@ function Chat() {
     hasMore,
     isModerator,
     unreadMessages,
+    lastMessages,
     banInfo,
     isMember,
     showJoinModal,
@@ -52,12 +53,15 @@ function Chat() {
     handleFileUpload,
     handleEmojiSelect,
     handleJoinRoom,
+    handleCancelJoinRoom,
     handleLeaveRoom,
     handleKickMember,
     handleBanUser,
     handleChangeRole,
     createRoom,
-    setShowJoinModal
+    setShowJoinModal,
+    handleRoomSelect,
+    handleUserSelect
   } = useChat(roomId, userId);
 
   const isOwner = activeChatInfo?.created_by === user?.id;
@@ -70,9 +74,10 @@ function Chat() {
         rooms={rooms}
         users={users}
         activeChat={activeChat}
-        handleRoomSelect={(room) => navigate(`/chat/room/${room.id}`)}
-        handleUserSelect={(user) => navigate(`/chat/user/${user.id}`)}
+        handleRoomSelect={handleRoomSelect}
+        handleUserSelect={handleUserSelect}
         unreadMessages={unreadMessages}
+        lastMessages={lastMessages}
         setIsModalVisible={setIsModalVisible}
       />
       
@@ -172,7 +177,7 @@ function Chat() {
         title="Tham gia phòng chat"
         open={showJoinModal}
         onOk={handleJoinRoom}
-        onCancel={() => setShowJoinModal(false)}
+        onCancel={handleCancelJoinRoom}
         okText="Tham gia"
         cancelText="Chỉ xem"
       >

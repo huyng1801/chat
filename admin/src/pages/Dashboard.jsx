@@ -113,7 +113,7 @@ function Dashboard() {
         <Col xs={24} sm={12} lg={6}>
           <StatisticCard
             title="Đang hoạt động"
-            value={stats.overall?.onlineUsers?.length || 0}
+            value={stats.overall?.onlineUsers}
             prefix={<ClockCircleOutlined style={{ color: colors.info }} />}
             loading={loading}
             color={colors.info}

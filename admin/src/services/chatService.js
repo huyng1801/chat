@@ -86,6 +86,37 @@ class ChatService {
     });
   }
 
+  // Unread message operations
+  async getUnreadMessageCount(roomId) {
+    try {
+      const response = await api.get(`/rooms/${roomId}/messages/unread`);
+      return response.count || 0;
+    } catch (error) {
+      console.error('Error getting unread message count:', error);
+      return 0;
+    }
+  }
+
+  async getUnreadMessageCounts(roomIds) {
+    try {
+      const counts = {};
+      // Make parallel requests for efficiency
+      await Promise.all(roomIds.map(async (roomId) => {
+        try {
+          const response = await this.getUnreadMessageCount(roomId);
+          counts[roomId] = response;
+        } catch (error) {
+          console.error(`Error getting unread count for room ${roomId}:`, error);
+          counts[roomId] = 0;
+        }
+      }));
+      return counts;
+    } catch (error) {
+      console.error('Error getting unread message counts:', error);
+      return {};
+    }
+  }
+
   // Direct message operations
   async getDirectMessages(userId, page = 1, limit = 20) {
     return api.get(`/direct/${userId}/messages`, {

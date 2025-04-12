@@ -3,11 +3,12 @@ import { message } from 'antd';
 import { useSocket } from '../context/SocketContext';
 import { useAuth } from '../context/AuthContext';
 import { chatService, userService } from '../services';
+import { useNavigate } from 'react-router-dom';
 
 export function useChat(roomId, userId) {
   const { socket } = useSocket();
   const { user } = useAuth();
-  
+  const navigate = useNavigate();
   // State
   const [messages, setMessages] = useState([]);
   const [rooms, setRooms] = useState([]);
@@ -26,10 +27,81 @@ export function useChat(roomId, userId) {
   const [hasMore, setHasMore] = useState(true);
   const [isModerator, setIsModerator] = useState(false);
   const [unreadMessages, setUnreadMessages] = useState({});
+  const [lastMessages, setLastMessages] = useState({});
   const [banInfo, setBanInfo] = useState(null);
   const [isMember, setIsMember] = useState(false);
   const [showJoinModal, setShowJoinModal] = useState(false);
+  const [typingUsers, setTypingUsers] = useState(new Map());
   const messageContainerRef = useRef(null);
+  const typingTimeoutRef = useRef(null);
+
+  // Socket event handlers
+  useEffect(() => {
+    if (!socket) return;
+
+    socket.on('receive_message', (message) => {
+      setMessages(prev => [message, ...prev]);
+      setLastMessages(prev => ({
+        ...prev,
+        [message.room_id]: message
+      }));
+    });
+
+    socket.on('receive_direct_message', (message) => {
+      setMessages(prev => [message, ...prev]);
+      setLastMessages(prev => ({
+        ...prev,
+        [message.sender_id]: message
+      }));
+    });
+
+    socket.on('unread_counts', ({ rooms = {}, direct = {} }) => {
+      setUnreadMessages(prev => ({
+        ...prev,
+        ...rooms,
+        ...direct
+      }));
+    });
+
+    socket.on('typing_update', (data) => {
+      if (data.roomId) {
+        setTypingUsers(prev => {
+          const newMap = new Map(prev);
+          newMap.set(data.roomId, data.users);
+          return newMap;
+        });
+      } else {
+        setTypingUsers(prev => {
+          const newMap = new Map(prev);
+          if (data.isTyping) {
+            newMap.set(data.userId, data.name);
+          } else {
+            newMap.delete(data.userId);
+          }
+          return newMap;
+        });
+      }
+    });
+
+    socket.on('user_status_change', ({ userId, status }) => {
+      setUsers(prev => prev.map(u => 
+        u.id === userId ? { ...u, status } : u
+      ));
+    });
+
+    socket.on('error', (error) => {
+      message.error(error);
+    });
+
+    return () => {
+      socket.off('receive_message');
+      socket.off('receive_direct_message');
+      socket.off('unread_counts');
+      socket.off('typing_update');
+      socket.off('user_status_change');
+      socket.off('error');
+    };
+  }, [socket]);
 
   // Load initial data
   useEffect(() => {
@@ -42,56 +114,20 @@ export function useChat(roomId, userId) {
       loadRoomMessages(roomId);
       fetchRoomDetails(roomId);
       checkMembershipAndBanStatus(roomId);
+      socket?.emit('join_room', roomId);
     } else if (userId) {
       setActiveChat(userId);
       setChatType('direct');
       loadDirectMessages(userId);
       fetchUserDetails(userId);
     }
-  }, [roomId, userId]);
-
-  // Socket event handlers
-  useEffect(() => {
-    if (!socket || !activeChat) return;
-
-    if (chatType === 'room') {
-      socket.emit('join_room', activeChat);
-    }
-
-    socket.on('receive_message', (message) => {
-      setMessages(prev => [message, ...prev]);
-    });
-
-    socket.on('user_status_change', ({ userId, status }) => {
-      setUsers(prev => prev.map(u => 
-        u.id === userId ? { ...u, status } : u
-      ));
-    });
 
     return () => {
-      socket.off('receive_message');
-      socket.off('user_status_change');
-      if (chatType === 'room') {
-        socket.emit('leave_room', activeChat);
+      if (roomId) {
+        socket?.emit('leave_room', roomId);
       }
     };
-  }, [socket, activeChat, chatType]);
-  
-  // Infinite scroll handler
-  const handleScroll = useCallback((e) => {
-    const { scrollTop } = e.target;
-    if (scrollTop === 0 && hasMore && !loading) {
-      loadMoreMessages();
-    }
-  }, [hasMore, loading, activeChat, chatType]);
-
-  useEffect(() => {
-    const container = messageContainerRef.current;
-    if (container) {
-      container.addEventListener('scroll', handleScroll);
-      return () => container.removeEventListener('scroll', handleScroll);
-    }
-  }, [handleScroll]);
+  }, [roomId, userId, socket]);
 
   // Data fetching functions
   const fetchRooms = async () => {
@@ -160,6 +196,12 @@ export function useChat(roomId, userId) {
 
       setHasMore(data.pagination?.hasMore || false);
       setPage(pageNum);
+
+      // Mark messages as read
+      socket?.emit('mark_as_read', {
+        type: 'room',
+        targetId: roomId
+      });
     } catch (error) {
       console.error('Error loading room messages:', error);
       message.error('Không thể tải tin nhắn');
@@ -183,6 +225,12 @@ export function useChat(roomId, userId) {
 
       setHasMore(data.pagination?.hasMore || false);
       setPage(pageNum);
+
+      // Mark messages as read
+      socket?.emit('mark_as_read', {
+        type: 'direct',
+        targetId: userId
+      });
     } catch (error) {
       console.error('Error loading direct messages:', error);
       message.error('Không thể tải tin nhắn');
@@ -202,37 +250,66 @@ export function useChat(roomId, userId) {
   };
 
   // Message handlers
-  const handleSendMessage = async () => {
-    if (!newMessage.trim() || !activeChat) return;
+  const handleSendMessage = () => {
+    if (!newMessage.trim() || !activeChat || !socket) return;
 
-    if (chatType === 'room' && !isMember) {
-      message.warning('Bạn cần tham gia phòng chat để gửi tin nhắn');
-      return;
+    if (chatType === 'room') {
+      if (!isMember) return message.warning('Bạn cần tham gia phòng chat để gửi tin nhắn');
+      if (banInfo) return message.error('Bạn đã bị cấm chat trong phòng này');
+
+      socket.emit('send_room_message', {
+        roomId: activeChat,
+        content: newMessage.trim(),
+        type: 'text'
+      });
+    } else {
+      socket.emit('send_direct_message', {
+        receiverId: activeChat,
+        content: newMessage.trim(),
+        type: 'text'
+      });
     }
 
-    if (chatType === 'room' && banInfo) {
-      message.error('Bạn đã bị cấm chat trong phòng này');
-      return;
-    }
-
-    try {
-      let msg;
-      if (chatType === 'room') {
-        msg = await chatService.createMessage(activeChat, newMessage.trim(), 'text');
-
-      } else {
-        msg = await chatService.createDirectMessage(activeChat, newMessage.trim(), 'text');
-      }
-      
-      if (msg) {
-        setMessages(prev => [msg, ...prev]);
-        setNewMessage('');
-      }
-    } catch (error) {
-      console.error('Error sending message:', error);
-      message.error('Không thể gửi tin nhắn');
-    }
+    setNewMessage('');
+    setShowEmojiPicker(false);
+    
+    // Scroll to bottom immediately for sender
+    setTimeout(() => {
+      const container = messageContainerRef.current;
+      if (container) container.scrollTop = container.scrollHeight;
+    }, 0);
   };
+
+  // Typing handlers
+  const handleTypingStart = useCallback(() => {
+    if (!socket || !activeChat) return;
+
+    if (chatType === 'room') {
+      socket.emit('typing_start', { roomId: activeChat });
+    } else {
+      socket.emit('typing_start', { userId: activeChat });
+    }
+
+    if (typingTimeoutRef.current) {
+      clearTimeout(typingTimeoutRef.current);
+    }
+
+    typingTimeoutRef.current = setTimeout(() => {
+      if (chatType === 'room') {
+        socket.emit('typing_end', { roomId: activeChat });
+      } else {
+        socket.emit('typing_end', { userId: activeChat });
+      }
+    }, 3000);
+  }, [socket, activeChat, chatType]);
+
+  useEffect(() => {
+    return () => {
+      if (typingTimeoutRef.current) {
+        clearTimeout(typingTimeoutRef.current);
+      }
+    };
+  }, []);
 
   // Room management handlers
   const handleJoinRoom = async () => {
@@ -253,6 +330,7 @@ export function useChat(roomId, userId) {
     try {
       await chatService.leaveRoom(roomId);
       message.success('Đã rời phòng chat');
+      socket?.emit('leave_room', roomId);
       fetchRooms();
     } catch (error) {
       message.error('Không thể rời phòng chat');
@@ -353,6 +431,14 @@ export function useChat(roomId, userId) {
     setShowEmojiPicker(false);
   };
 
+  // Handle room/user selection
+  const handleRoomSelect = (room) => {
+    navigate(`/chat/room/${room.id}`);
+  };
+
+  const handleUserSelect = (selectedUser) => {
+    navigate(`/chat/user/${selectedUser.id}`);
+  };
   return {
     // State
     messages,
@@ -371,9 +457,11 @@ export function useChat(roomId, userId) {
     hasMore,
     isModerator,
     unreadMessages,
+    lastMessages,
     banInfo,
     isMember,
     showJoinModal,
+    typingUsers,
     messageContainerRef,
 
     // Actions
@@ -384,6 +472,7 @@ export function useChat(roomId, userId) {
     setNewRoomName,
     setShowEmojiPicker,
     handleSendMessage,
+    handleTypingStart,
     handleFileUpload,
     handleEmojiSelect,
     handleJoinRoom,
@@ -393,6 +482,9 @@ export function useChat(roomId, userId) {
     handleBanUser,
     handleChangeRole,
     createRoom,
-    setShowJoinModal
+    setShowJoinModal,
+    handleRoomSelect,
+    handleUserSelect,
+    loadMoreMessages
   };
 }

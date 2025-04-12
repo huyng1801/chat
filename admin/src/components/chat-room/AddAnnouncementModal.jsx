@@ -5,7 +5,7 @@ import { announcementService } from '../../services';
 const { TextArea } = Input;
 const { Text } = Typography;
 
-function AnnouncementModal({ visible, onClose, selectedRooms, rooms }) {
+function AddAnnouncementModal({ visible, onClose, selectedRooms, rooms }) {
   const [form] = Form.useForm();
   const [loading, setLoading] = useState(false);
   const handleSubmit = async () => {
@@ -120,7 +120,7 @@ function AnnouncementModal({ visible, onClose, selectedRooms, rooms }) {
           ]}
         >
           <TextArea 
-            rows={4} 
+            rows={10} 
             placeholder="Nhập nội dung thông báo" 
             showCount
             maxLength={1000}
@@ -150,4 +150,4 @@ function AnnouncementModal({ visible, onClose, selectedRooms, rooms }) {
   );
 }
 
-export default AnnouncementModal;
+export default AddAnnouncementModal;

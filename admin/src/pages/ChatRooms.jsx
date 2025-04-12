@@ -11,7 +11,7 @@ import { chatService } from '../services';
 import ChatRoomTable from '../components/chat-room/ChatRoomTable';
 import ChatRoomForm from '../components/chat-room/ChatRoomForm';
 import ChatRoomDetails from '../components/chat-room/ChatRoomDetails';
-import AnnouncementModal from '../components/chat-room/AnnouncementModal';
+import AddAnnouncementModal from '../components/chat-room/AddAnnouncementModal';
 import AnnouncementManagerModal from '../components/chat-room/AnnouncementManagerModal';
 import debounce from 'lodash/debounce';
 
@@ -25,7 +25,7 @@ function ChatRooms() {
   const [detailsVisible, setDetailsVisible] = useState(false);
   const [roomDetails, setRoomDetails] = useState(null);
   const [selectedRows, setSelectedRows] = useState([]);
-  const [isAnnouncementModalVisible, setIsAnnouncementModalVisible] = useState(false);
+  const [isAddAnnouncementModalVisible, setIsAddAnnouncementModalVisible] = useState(false);
   const [isAnnouncementManagerVisible, setIsAnnouncementManagerVisible] = useState(false);
   const [form] = Form.useForm();
 
@@ -127,7 +127,7 @@ function ChatRooms() {
       message.warning('Vui lòng chọn ít nhất một phòng chat');
       return;
     }
-    setIsAnnouncementModalVisible(true);
+    setIsAddAnnouncementModalVisible(true);
   };
 
   const rowSelection = {
@@ -244,10 +244,10 @@ function ChatRooms() {
         }}
       />
 
-      <AnnouncementModal
-        visible={isAnnouncementModalVisible}
+      <AddAnnouncementModal
+        visible={isAddAnnouncementModalVisible}
         onClose={() => {
-          setIsAnnouncementModalVisible(false);
+          setIsAddAnnouncementModalVisible(false);
           setSelectedRows([]);
         }}
         selectedRooms={selectedRows}

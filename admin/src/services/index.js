@@ -6,3 +6,4 @@ export { default as statisticsService } from './statisticsService';
 export { default as forbiddenWordService } from './forbiddenWordService';
 export { default as settingService } from './settingService';
 export { default as announcementService } from './announcementService';
+export { default as autoReplyService } from './autoReplyService';

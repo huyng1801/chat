@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect, useRef } from 'react';
 import { Empty, Spin, Typography, Avatar, Space } from 'antd';
 import { UserOutlined, FileOutlined, StarFilled, CrownFilled } from '@ant-design/icons';
 import { format } from 'date-fns';
@@ -14,6 +14,20 @@ function ChatMessages({
   messageContainerRef
 }) {
   const { user } = useAuth();
+  const lastMessageRef = useRef(null);
+
+  // Effect to scroll to bottom when new messages are added
+  useEffect(() => {
+    if (messages.length > 0 && messageContainerRef.current) {
+      const container = messageContainerRef.current;
+      const isAtBottom = container.scrollHeight - container.scrollTop <= container.clientHeight + 100;
+      
+      // If user is already at bottom, scroll to new message
+      if (isAtBottom) {
+        container.scrollTop = container.scrollHeight;
+      }
+    }
+  }, [messages]);
 
   const EmptyMessageState = () => (
     <Empty
@@ -104,6 +118,7 @@ function ChatMessages({
               maxWidth: '70%',
               marginBottom: '16px'
             }}
+            ref={index === 0 ? lastMessageRef : null}
           >
             <div
               style={{

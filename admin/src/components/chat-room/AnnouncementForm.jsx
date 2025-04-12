@@ -22,6 +22,7 @@ function AnnouncementForm({ visible, onClose, onSubmit, announcement }) {
       setLoading(true);
 
       if (announcement) {
+        values.roomId = announcement.room_id;
         await announcementService.updateAnnouncement(announcement.id, values);
         message.success('Cập nhật thông báo thành công');
       }
@@ -81,6 +82,7 @@ function AnnouncementForm({ visible, onClose, onSubmit, announcement }) {
           is_active: true
         }}
       >
+
         <Form.Item
           name="content"
           label="Nội dung thông báo"
@@ -90,7 +92,7 @@ function AnnouncementForm({ visible, onClose, onSubmit, announcement }) {
           ]}
         >
           <TextArea 
-            rows={6} 
+            rows={10} 
             placeholder="Nhập nội dung thông báo" 
             showCount
             maxLength={1000}

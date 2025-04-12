@@ -1,6 +1,8 @@
 import React from 'react';
-import { Layout, Tabs, Button, List, Avatar, Badge, Typography, Empty } from 'antd';
+import { Layout, Tabs, Button, List, Avatar, Badge, Typography, Empty, Tooltip } from 'antd';
 import { TeamOutlined, UserOutlined, PlusOutlined } from '@ant-design/icons';
+import { format } from 'date-fns';
+import { vi } from 'date-fns/locale';
 
 const { Sider } = Layout;
 const { Text } = Typography;
@@ -14,8 +16,10 @@ function ChatSidebar({
   handleRoomSelect,
   handleUserSelect,
   unreadMessages = {},
+  lastMessages = {},
   setIsModalVisible
 }) {
+
   const EmptyRoomState = () => (
     <Empty
       image={Empty.PRESENTED_IMAGE_SIMPLE}
@@ -41,6 +45,59 @@ function ChatSidebar({
       }
     />
   );
+
+  const formatMessageTime = (timestamp) => {
+    if (!timestamp) return '';
+    const date = new Date(timestamp);
+    const now = new Date();
+    const isToday = date.toDateString() === now.toDateString();
+    return format(date, isToday ? 'HH:mm' : 'dd/MM', { locale: vi });
+  };
+
+  const truncateText = (text, maxLength = 30) => {
+    if (!text) return '';
+    if (text.length <= maxLength) return text;
+    return text.substring(0, maxLength) + '...';
+  };
+
+  const renderLastMessage = (id, type = 'room') => {
+    const message = lastMessages[id];
+    if (!message) return null;
+
+    const messageContent = message.type === 'text' ? message.content : `[${message.type}]`;
+    const displayText = type === 'room' 
+      ? `${message.sender_name}: ${messageContent}`
+      : messageContent;
+
+    return (
+      <div style={{ 
+        display: 'flex', 
+        justifyContent: 'space-between', 
+        alignItems: 'center',
+        width: '100%',
+        marginTop: '4px'
+      }}>
+        <Tooltip title={displayText}>
+          <Text 
+            type="secondary" 
+            style={{ 
+              fontSize: '12px',
+              maxWidth: '220px',
+              overflow: 'hidden',
+              textOverflow: 'ellipsis',
+              whiteSpace: 'nowrap',
+              display: 'block'
+            }}
+          >
+            {truncateText(displayText)}
+          </Text>
+        </Tooltip>
+        <Text type="secondary" style={{ fontSize: '12px', flexShrink: 0, marginLeft: '8px' }}>
+          {formatMessageTime(message.created_at)}
+        </Text>
+      </div>
+    );
+  };
 
   const items = [
     {
@@ -80,11 +137,11 @@ function ChatSidebar({
                 >
                   <div style={{ 
                     display: 'flex', 
-                    alignItems: 'center', 
+                    alignItems: 'flex-start', 
                     justifyContent: 'space-between',
                     width: '100%' 
                   }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                    <div style={{ display: 'flex', alignItems: 'flex-start', gap: '12px' }}>
                       <Avatar 
                         size={40}
                         icon={<TeamOutlined />}
@@ -93,15 +150,24 @@ function ChatSidebar({
                           flexShrink: 0
                         }}
                       />
-                      <div>
-                        <div style={{ fontWeight: 500 }}>{room.name}</div>
+                      <div style={{ flex: 1, minWidth: 0 }}>
+                        <div style={{ 
+                          fontWeight: unreadMessages[room.id] > 0 ? 600 : 500,
+                          color: unreadMessages[room.id] > 0 ? '#1677ff' : 'inherit'
+                        }}>
+                          {room.name}
+                        </div>
                         <Text type="secondary" style={{ fontSize: '12px' }}>
                           {room.member_count || 0} thành viên
                         </Text>
+                        {renderLastMessage(room.id, 'room')}
                       </div>
                     </div>
                     {unreadMessages[room.id] > 0 && (
-                      <Badge count={unreadMessages[room.id]} />
+                      <Badge 
+                        count={unreadMessages[room.id]} 
+                        style={{ marginLeft: '8px', marginTop: '8px' }}
+                      />
                     )}
                   </div>
                 </List.Item>
@@ -137,11 +203,11 @@ function ChatSidebar({
             >
               <div style={{ 
                 display: 'flex', 
-                alignItems: 'center', 
+                alignItems: 'flex-start', 
                 justifyContent: 'space-between',
                 width: '100%'
               }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                <div style={{ display: 'flex', alignItems: 'flex-start', gap: '12px' }}>
                   <Avatar 
                     size={40}
                     src={user.avatar}
@@ -151,17 +217,26 @@ function ChatSidebar({
                       flexShrink: 0
                     }}
                   />
-                  <div>
-                    <div style={{ fontWeight: 500 }}>{user.display_name || user.username}</div>
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ 
+                      fontWeight: unreadMessages[user.id] > 0 ? 600 : 500,
+                      color: unreadMessages[user.id] > 0 ? '#1677ff' : 'inherit'
+                    }}>
+                      {user.display_name || user.username}
+                    </div>
                     <Badge 
                       status={user.status === 'online' ? 'success' : 'default'} 
                       text={user.status === 'online' ? 'Đang hoạt động' : 'Không hoạt động'}
                       style={{ fontSize: '12px' }}
                     />
+                    {renderLastMessage(user.id, 'direct')}
                   </div>
                 </div>
                 {unreadMessages[user.id] > 0 && (
-                  <Badge count={unreadMessages[user.id]} />
+                  <Badge 
+                    count={unreadMessages[user.id]} 
+                    style={{ marginLeft: '8px', marginTop: '8px' }}
+                  />
                 )}
               </div>
             </List.Item>
@@ -172,7 +247,7 @@ function ChatSidebar({
   ];
 
   return (
-    <Sider width={300} theme="light" style={{ borderRight: '1px solid #f0f0f0' }}>
+    <Sider width={350} theme="light" style={{ borderRight: '1px solid #f0f0f0' }}>
       <Tabs 
         activeKey={activeTab}
         onChange={handleTabChange}

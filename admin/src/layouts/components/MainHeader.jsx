@@ -67,6 +67,12 @@ function MainHeader() {
         case "dashboard":
           label = "Bảng điều khiển";
           break;
+        case "auto-replies":
+          label = "Phản hồi tự động";
+          break;
+        case "settings":
+          label = "Cài đặt hệ thống";
+          break;
         default:
           label = path;
       }
@@ -89,7 +95,9 @@ function MainHeader() {
     >
       <Menu.Item
         key="/profile"
-        icon={<UserOutlined style={{ fontSize: "16px", color: colors.primary }} />}
+        icon={
+          <UserOutlined style={{ fontSize: "16px", color: colors.primary }} />
+        }
         style={{ padding: "10px 16px" }}
       >
         <Space align="center">
@@ -99,7 +107,9 @@ function MainHeader() {
 
       <Menu.Item
         key="/change-password"
-        icon={<LockOutlined style={{ fontSize: "16px", color: colors.primary }} />}
+        icon={
+          <LockOutlined style={{ fontSize: "16px", color: colors.primary }} />
+        }
         style={{ padding: "10px 16px" }}
       >
         <Space align="center">
@@ -159,7 +169,9 @@ function MainHeader() {
               {user?.display_name || user?.username}
             </Text>
           </Space>
-          <CaretDownOutlined style={{ fontSize: "12px", color: colors.textSecondary }} />
+          <CaretDownOutlined
+            style={{ fontSize: "12px", color: colors.textSecondary }}
+          />
         </Space>
       </Dropdown>
     </Header>

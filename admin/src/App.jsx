@@ -13,6 +13,7 @@ import Login from './pages/Login';
 import Profile from './pages/Profile';
 import ChangePassword from './pages/ChangePassword';
 import Settings from './pages/Settings';
+import AutoReplies from './pages/AutoReplies';
 import { colors } from './constants/colors';
 
 const theme = {
@@ -83,6 +84,7 @@ function AppRoutes() {
                 <Route path="profile" element={<Profile />} />
                 <Route path="change-password" element={<ChangePassword />} />
                 <Route path="settings" element={<Settings />} />
+                <Route path="auto-replies" element={<AutoReplies />} />
                 <Route path="*" element={<Navigate to="/" replace />} />
               </Routes>
             </MainLayout>
