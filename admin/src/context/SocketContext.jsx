@@ -3,10 +3,10 @@ import io from 'socket.io-client';
 import { useAuth } from './AuthContext';
 
 const SocketContext = createContext();
-
+const SOCKET_URL = import.meta.env.VITE_SOCKET_URL;
 export const SocketProvider = ({ children }) => {
   const { user } = useAuth();
-  const socket = io('http://localhost:3001');
+  const socket = io(SOCKET_URL);
 
   useEffect(() => {
     if (user) {
