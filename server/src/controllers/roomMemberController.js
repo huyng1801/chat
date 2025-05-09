@@ -49,6 +49,7 @@ async function kickMember(req, res) {
 async function getRoomMembers(req, res) {
   try {
     const members = await roomMemberService.getRoomMembers(req.params.id);
+
     res.json(members);
   } catch (error) {
     res.status(500).json({ error: error.message });
@@ -58,6 +59,7 @@ async function getRoomMembers(req, res) {
 async function getPendingMembers(req, res) {
   try {
     const members = await roomMemberService.getPendingMembers(req.params.id);
+    console.log('members', members);
     res.json(members);
   } catch (error) {
     res.status(500).json({ error: error.message });

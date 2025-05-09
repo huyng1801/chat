@@ -21,10 +21,10 @@ router.use('/rooms', chatRoomRoutes);
 router.use('/rooms', roomMemberRoutes); // Shares /rooms base path
 router.use('/rooms', roomBanRoutes); // Shares /rooms base path
 router.use('/rooms', roomMessageRoutes); // Shares /rooms base path
+router.use('/rooms', forbiddenWordRoutes);
 router.use('/direct', directMessageRoutes);
 router.use('/statistics', statisticsRoutes);
 router.use('/announcements', announcementRoutes);
-router.use('/forbidden-words', forbiddenWordRoutes);
 router.use('/settings', settingRoutes);
 router.use('/auto-replies', autoReplyRoutes);
 

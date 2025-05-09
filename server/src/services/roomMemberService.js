@@ -3,6 +3,7 @@ const { RoomMember, User } = require('../models');
 function createRoomMemberService() {
   async function joinRoom(roomId, userId) {
     try {
+
       const [member, created] = await RoomMember.findOrCreate({
         where: { room_id: roomId, user_id: userId },
         defaults: {
@@ -175,9 +176,9 @@ function createRoomMemberService() {
           attributes: ['id', 'username', 'display_name', 'avatar']
         }]
       });
-  
+      
       return members.map(m => ({
-        ...m.user?.toJSON(),
+        ...m.User?.toJSON(),
         requested_at: m.createdAt
       }));
     } catch (error) {
