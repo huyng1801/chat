@@ -73,6 +73,7 @@ function RoomDetails({
 
     try {
       const data = await chatService.getPendingMembers(room.id);
+    
       setPendingMembers(data || []);
     } catch (error) {
       message.error('Không thể tải danh sách yêu cầu tham gia');

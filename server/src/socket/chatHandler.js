@@ -19,6 +19,7 @@ function createChatHandler(io) {
   const connectedUsers = new Map();
   const userSockets = new Map();
   const typingUsers = new Map();
+  const disconnectTimers = new Map(); // For handling page refresh (F5) gracefully
 
   async function handleConnection(socket) {
     console.log('Người dùng kết nối:', socket.id);
@@ -40,6 +41,14 @@ function createChatHandler(io) {
           throw new Error('Tài khoản đã bị vô hiệu hóa');
         }
 
+        // If there's a pending disconnect timer for this user, clear it
+        // This handles the case when a user refreshes the page (F5)
+        if (disconnectTimers.has(userId)) {
+          clearTimeout(disconnectTimers.get(userId));
+          disconnectTimers.delete(userId);
+          console.log('Reconnected - cleared disconnect timer for user:', userId);
+        }
+        
         // Store user connection
         connectedUsers.set(socket.id, userId);
         userSockets.set(userId, socket.id);
@@ -104,11 +113,17 @@ function createChatHandler(io) {
         if (!isMember) {
           throw new Error('Không có quyền gửi tin nhắn trong phòng này');
         }
+        
+        // Get user info including role
+        const user = await User.findByPk(userId, {
+          attributes: ['id', 'username', 'role']
+        });
 
         // Check forbidden words
         const { isAllowed, content } = await forbiddenWordService.checkMessage(
           data.roomId,
-          data.content
+          data.content,
+          user.role
         );
 
         if (!isAllowed) {
@@ -376,19 +391,36 @@ function createChatHandler(io) {
       const userId = connectedUsers.get(socket.id);
       if (userId) {
         try {
-          // Update user status
-          await User.update(
-            { status: 'offline' },
-            { where: { id: userId } }
-          );
+          // Instead of immediately marking the user as offline, set a timer
+          // This will allow for brief disconnections during page refresh (F5)
+          if (disconnectTimers.has(userId)) {
+            clearTimeout(disconnectTimers.get(userId));
+          }
           
-          // Broadcast status change
-          io.emit('user_status_change', { 
-            userId, 
-            status: 'offline' 
-          });
+          // Use 3 second grace period for reconnection
+          const timer = setTimeout(async () => {
+            // If timer executes, the user hasn't reconnected within the grace period
+            // Update user status
+            await User.update(
+              { status: 'offline' },
+              { where: { id: userId } }
+            );
+            
+            // Broadcast status change
+            io.emit('user_status_change', { 
+              userId, 
+              status: 'offline' 
+            });
+            
+            // Remove from disconnect timers
+            disconnectTimers.delete(userId);
+            
+            console.log('Người dùng offline (timeout):', userId);
+          }, 3000); // 3 second grace period
+          
+          disconnectTimers.set(userId, timer);
 
-          // Remove user from all typing lists
+          // Remove user from all typing lists immediately
           for (const [key, typingList] of typingUsers.entries()) {
             if (key.startsWith('room:') && key.endsWith(':typing')) {
               const roomId = key.split(':')[1];
@@ -405,11 +437,11 @@ function createChatHandler(io) {
             }
           }
           
-          // Clean up maps
+          // Clean up socket maps immediately
           connectedUsers.delete(socket.id);
           userSockets.delete(userId);
           
-          console.log('Người dùng ngắt kết nối:', socket.id);
+          console.log('Người dùng ngắt kết nối (có thể tải lại trang):', socket.id);
         } catch (error) {
           console.error('Lỗi khi cập nhật trạng thái người dùng:', error);
         }

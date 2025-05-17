@@ -24,17 +24,17 @@ function createForbiddenWordService() {
   async function addForbiddenWord(roomId, word, action, userId) {
     try {
       // Check if user is moderator or creator
-      // const member = await RoomMember.findOne({
-      //   where: {
-      //     room_id: roomId,
-      //     user_id: userId,
-      //     role: 'moderator'
-      //   }
-      // });
+      const member = await RoomMember.findOne({
+        where: {
+          room_id: roomId,
+          user_id: userId,
+          role: 'moderator'
+        }
+      });
 
-      // if (!member) {
-      //   throw new Error('Không có quyền thêm từ cấm');
-      // }
+      if (!member) {
+        throw new Error('Không có quyền thêm từ cấm');
+      }
 
       // Normalize Vietnamese word
       const normalizedWord = word.toLowerCase()
@@ -90,12 +90,12 @@ function createForbiddenWordService() {
   async function checkMessage(roomId, content, userRole) {
     try {
       // Allow admins, owners, and moderators to bypass checks
-      // if (['admin', 'owner', 'moderator'].includes(userRole)) {
-      //   return {
-      //     isAllowed: true,
-      //     content
-      //   };
-      // }
+      if (['admin', 'owner', 'moderator'].includes(userRole)) {
+        return {
+          isAllowed: true,
+          content
+        };
+      }
 
       // Get forbidden words for this room
       const forbiddenWords = await ForbiddenWord.findAll({

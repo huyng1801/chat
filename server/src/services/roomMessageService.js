@@ -104,7 +104,7 @@ function createRoomMessageService() {
         attributes: ['role'],
         transaction: t 
       });
-      
+     
       // Check forbidden words
       const { isAllowed, content: modifiedContent } = await forbiddenWordService.checkMessage(
         roomId,

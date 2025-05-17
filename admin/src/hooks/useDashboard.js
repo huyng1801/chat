@@ -14,7 +14,7 @@ export function useDashboard() {
   
   const [dateRange, setDateRange] = useState([
     dayjs().subtract(14, 'day'),
-    dayjs().add(1, 'day')
+    dayjs()
   ]);
 
   const fetchDashboardData = async () => {
@@ -32,7 +32,7 @@ export function useDashboard() {
         statisticsService.getOverallStats(),
         statisticsService.getMessageStats(
           startDate.format('YYYY-MM-DD'),
-          endDate.format('YYYY-MM-DD')
+          endDate.add(1, 'day').format('YYYY-MM-DD')
         ),
         statisticsService.getUserStats(),
         statisticsService.getRoomStats(),
