@@ -8,7 +8,7 @@ async function register(req, res) {
   try {
     const { email, password, username, displayName } = req.body;
     // Register always creates a regular user
-    const user = await userService.createUser(email, password, username, displayName, 'user');
+    const user = await authService.register(email, password, username, displayName);
     res.json(user);
   } catch (error) {
     res.status(400).json({ error: error.message });

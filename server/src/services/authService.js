@@ -125,7 +125,7 @@ function createAuthService() {
         display_name: displayName || username,
         role: 'user',
         status: 'offline',
-        is_active: true
+        is_active: false
       });
 
       // Return user without password hash
